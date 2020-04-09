@@ -1,9 +1,9 @@
 # Qt
-from PyQt5.QtWidgets import QApplication, QWidget
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QFrame
+from PyQt5.QtWidgets import QApplication, QMessageBox, QWidget
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout, QFrame
 from PyQt5.QtWidgets import QColorDialog, QComboBox, QLabel, QPushButton
-from PyQt5.QtWidgets import QStyleFactory
-from PyQt5.QtGui import QColor, qRgb
+from PyQt5.QtWidgets import QCheckBox
+from PyQt5.QtGui import QIcon, QColor, qRgb
 
 # Serial
 import serial, serial.tools.list_ports
@@ -11,8 +11,167 @@ import serial, serial.tools.list_ports
 # Other
 import glob, sys
 
+# Flags pseudo defines
+FLAGS_USE_LOOPBACK            = 128
+FLAGS_JOYSTICK_HAS_LEDS       = 64
+FLAGS_JOYSTICK_LEDS_ARE_FIRST = 32
+FLAGS_HAS_4P                  = 16
+FLAGS_FOUR_P_TURNS_ON_ALL_P   = 8
+FLAGS_HAS_4K                  = 4
+FLAGS_FOUR_K_TURNS_ON_ALL_K   = 2
+FLAGS_HAS_EXTRA_UP_BUTTON     = 1
+
+# Widgets
+class portsWidget(QWidget):
+    def __init__(self, parent):
+        super(portsWidget, self).__init__(parent)
+        self.parent = parent
+
+        self.portsLabel = QLabel("Ports: ")
+        self.serial = serial.Serial()
+        self.ports = parent.getPorts()
+        self.portsCombo = QComboBox()
+        self.buildPortsComboBox(self.ports)
+        self.upload = QPushButton("Upload")
+        self.upload.clicked.connect(lambda: self.uploadValues())
+
+        self.layout = QHBoxLayout()
+
+        self.layout.addWidget(self.portsLabel)
+        self.layout.addWidget(self.portsCombo)
+        self.layout.addWidget(self.upload)
+
+        self.setLayout(self.layout)
+
+    def uploadValues(self):
+        values = "set allbuttons "
+
+        for item in self.parent.buttons:
+            values += str(item.passiveColor.red())
+            values += " "
+            values += str(item.passiveColor.green())
+            values += " "
+            values += str(item.passiveColor.blue())
+            values += " "
+            values += str(item.activeColor.red())
+            values += " "
+            values += str(item.activeColor.green())
+            values += " "
+            values += str(item.activeColor.blue())
+            values += " "
+            
+        commandSet(self.portsCombo.currentText(), values, self.parent.flags)
+
+    def buildPortsComboBox(self, arr):
+        """Creates a combo box containing the list of available serial ports."""
+        for i in range(len(arr)):
+            self.portsCombo.addItem(arr[i])      
+
+class flagsWidget(QWidget):
+    def __init__(self, parent):
+        super(flagsWidget, self).__init__(parent)
+        self.parent = parent
+        self.flags = int(self.getFlags())
+
+        # Set checkboxes
+        self.useLoopback = QCheckBox("Use loopback: ")
+        if ((self.flags & FLAGS_USE_LOOPBACK) != 0):
+            self.useLoopback.setChecked(True)
+        else:
+            self.useLoopback.setChecked(False)
+
+        self.joyHasLeds = QCheckBox("Joystick has LEDs: ")
+        if ((self.flags & FLAGS_JOYSTICK_HAS_LEDS) != 0):
+            self.joyHasLeds.setChecked(True)
+        else:
+            self.joyHasLeds.setChecked(False)
+
+        self.joyLedsAreFirst = QCheckBox("Joystick LEDs are first:")
+        if ((self.flags & FLAGS_JOYSTICK_LEDS_ARE_FIRST) != 0):
+            self.joyLedsAreFirst.setChecked(True)
+        else:
+            self.joyLedsAreFirst.setChecked(False)
+
+        self.has4P = QCheckBox("Has 4P button:")
+        if ((self.flags & FLAGS_HAS_4P) != 0):
+            self.has4P.setChecked(True)
+        else:
+            self.has4P.setChecked(False)
+
+        self.fourPLightsAll = QCheckBox("4P lights all punches:")
+        if ((self.flags & FLAGS_FOUR_P_TURNS_ON_ALL_P) != 0):
+            self.fourPLightsAll.setChecked(True)
+        else:
+            self.fourPLightsAll.setChecked(False)
+
+        self.has4K = QCheckBox("Has 4P button:")
+        if ((self.flags & FLAGS_HAS_4K) != 0):
+            self.has4K.setChecked(True)
+        else:
+            self.has4K.setChecked(False)
+
+        self.fourKLightsAll = QCheckBox("4K lights all kicks:")
+        if ((self.flags & FLAGS_FOUR_K_TURNS_ON_ALL_K) != 0):
+            self.fourKLightsAll.setChecked(True)
+        else:
+            self.fourKLightsAll.setChecked(False)
+
+        self.hasExtraUp = QCheckBox("Has extra Up button:")
+        if ((self.flags & FLAGS_HAS_4P) != 0):
+            self.hasExtraUp.setChecked(True)
+        else:
+            self.hasExtraUp.setChecked(False)
+
+        self.upload = QPushButton("Update flags")
+        self.upload.clicked.connect(lambda: self.setFlags())
+
+        self.layout = QGridLayout()
+        self.layout.addWidget(self.useLoopback, 0, 0)
+        self.layout.addWidget(self.joyHasLeds, 0, 1)
+        self.layout.addWidget(self.joyLedsAreFirst, 0, 2)
+        self.layout.addWidget(self.has4P, 1, 0)
+        self.layout.addWidget(self.fourPLightsAll, 1, 1)
+        self.layout.addWidget(self.has4K, 2, 0)
+        self.layout.addWidget(self.fourKLightsAll, 2, 1)
+        self.layout.addWidget(self.hasExtraUp, 1, 2)
+        self.layout.addWidget(self.upload, 2, 2)
+
+        self.setLayout(self.layout)
+
+    def getFlags(self):
+        return commandGet(self.parent.portSelect.portsCombo.currentText(), "get flags", 0)
+
+    def setFlags(self):
+        self.flags = 0
+        if (self.useLoopback.isChecked()):
+            self.flags += FLAGS_USE_LOOPBACK
+
+        if (self.joyHasLeds.isChecked()):
+            self.flags += FLAGS_JOYSTICK_HAS_LEDS
+
+        if (self.joyLedsAreFirst.isChecked()):
+            self.flags += FLAGS_JOYSTICK_LEDS_ARE_FIRST
+
+        if (self.has4P.isChecked()):
+            self.flags += FLAGS_HAS_4P
+
+        if (self.fourPLightsAll.isChecked()):
+            self.flags += FLAGS_FOUR_P_TURNS_ON_ALL_P
+
+        if (self.has4K.isChecked()):
+            self.flags += FLAGS_HAS_4K
+
+        if (self.fourKLightsAll.isChecked()):
+            self.flags += FLAGS_FOUR_K_TURNS_ON_ALL_K
+
+        if (self.hasExtraUp.isChecked()):
+            self.flags += FLAGS_HAS_EXTRA_UP_BUTTON
+        
+        commandSet(self.parent.portSelect.portsCombo.currentText(), "set flags {}".format(self.flags), self.flags)
+        
+
 class arcadeButton(QWidget):
-    def __init__(self, name, parent, colorinfo):
+    def __init__(self, parent, name, colorinfo):
         super(arcadeButton, self).__init__(parent)
         # Properties
         self.name = QLabel(name)
@@ -50,7 +209,7 @@ class arcadeButton(QWidget):
         # Display
         self.setLayout(self.mainBox)
 
-    # Functions
+    # Methods
     def openColorDialog(self, selector):
         """Opens a color picker and updates the relevant button data"""
         color = QColorDialog.getColor()
@@ -68,13 +227,10 @@ class MainWindow(QWidget):
         self.setWindowTitle("BadLED Control Deck")
 
         # Ports
-        self.portsLabel = QLabel("Ports: ")
-        self.serial = serial.Serial()
-        self.ports = self.getPorts()
-        self.portsCombo = QComboBox()
-        self.buildPortsComboBox(self.ports)
-        self.upload = QPushButton("Upload")
-        self.upload.clicked.connect(lambda: self.uploadValues())
+        self.portSelect = portsWidget(self)
+
+        # Flags
+        self.flags = flagsWidget(self)
 
         # Buttons
         self.names = [ "RIGHT", "DOWN", "LEFT", "UP", "1P", "2P", "3P", "4P", "1K", "2K", "3K", "4K" ]
@@ -97,50 +253,21 @@ class MainWindow(QWidget):
             
         # Layout
         self.mainVBox = QVBoxLayout()       # Main layout
-        self.portsHBox = QHBoxLayout()      # Holds the port widgets
         self.buttonsHBox = QHBoxLayout()    # Holds the panels that contain the arcadeButton widgets
-
-        self.portsHBox.addWidget(self.portsLabel)
-        self.portsHBox.addWidget(self.portsCombo)
-        self.portsHBox.addWidget(self.upload)
 
         for i in range(len(self.panels)):
             self.buttonsHBox.addWidget(self.panels[i])
 
-        self.mainVBox.addLayout(self.portsHBox)
+        self.mainVBox.addWidget(self.flags)
+        self.mainVBox.addWidget(self.portSelect)
         self.mainVBox.addLayout(self.buttonsHBox)
 
         self.setLayout(self.mainVBox)
 
         # Show
         self.show()
-        
-    def uploadValues(self):
-        values = "set allbuttons "
 
-        for item in self.buttons:
-            values += str(item.passiveColor.red())
-            values += " "
-            values += str(item.passiveColor.green())
-            values += " "
-            values += str(item.passiveColor.blue())
-            values += " "
-            values += str(item.activeColor.red())
-            values += " "
-            values += str(item.activeColor.green())
-            values += " "
-            values += str(item.activeColor.blue())
-            values += " "
-        values = bytearray(values, 'utf-8')
-            
-        s = serial.Serial(self.portsCombo.currentText(), timeout=5)
-        resp = s.readline()
-        s.write(values)
-        resp = s.readline()
-        if "Received:" in resp.decode():
-            resp = s.readline()
-        s.close()
-
+    # Methods
     def getPorts(self):
         """Gets a list of available serial ports"""
         if sys.platform.startswith('win'):
@@ -149,8 +276,7 @@ class MainWindow(QWidget):
             ports = glob.glob('/dev/tty[A-Za-z]*')
         elif sys.platform.startswith('darwin'):
             ports = glob.glob('/dev/tty.*')
-        else:
-            
+        else:        
             raise EnvironmentError('Unsupported platform')
 
         result = []
@@ -168,27 +294,16 @@ class MainWindow(QWidget):
         for i in range(len(arr)):
             self.portsCombo.addItem(arr[i])
 
+    def getFlags(self):
+        return commandGet(self.portSelect.portsCombo.currentText(), "get flags", 0)
+
     def getButtons(self):
         """Gets the number of buttons on the stick. Implicitly trusts the hardware to give the right info."""
-        s = serial.Serial(self.portsCombo.currentText(), timeout=5)
-        resp = s.readline()
-        s.write("hwinfo".encode())
-        resp = s.readline()
-        if "Received:" in resp.decode():
-            resp = s.readline()
-        s.close()
-        return resp.decode()
+        return commandGet(self.portSelect.portsCombo.currentText(), "get hwinfo", self.flags.flags)
 
     def getColors(self):
         """Gets color data from the Arduino."""
-        s = serial.Serial(self.portsCombo.currentText(), timeout=5)
-        resp = s.readline()
-        s.write("getcolorinfo".encode())
-        resp = s.readline()
-        if "Received:" in resp.decode():
-            resp = s.readline()
-        s.close()
-        return resp
+        return commandGet(self.portSelect.portsCombo.currentText(), "get colorinfo", self.flags.flags)
 
     def buildButtonArray(self):
         """Populates the array of arcadeButton widgets using color information provided by the hardware"""
@@ -197,9 +312,34 @@ class MainWindow(QWidget):
         
         for i in range(self.numberOfButtons - 1):
             j = i * 6
-            arr.append(arcadeButton(self.names[i], self, colorinfo[j:j+6]))
+            arr.append(arcadeButton(self, self.names[i], colorinfo[j:j+7]))
         return arr
 
+def connect(portString):
+    """Connects to a serial port. Since they are enumered separately, we assume the port is available by default."""
+    s = serial.Serial(portString, timeout=5)
+    resp = s.readline()
+    return s
+
+def commandSet(portString, command, flags):
+    """Sends a command through serial, does not expect a return."""
+    s = connect(portString)
+    s.write(command.encode())
+    resp = s.readline()
+    if ((flags & FLAGS_USE_LOOPBACK) != 0) == True:
+        resp = s.readline()
+    s.close()
+    QMessageBox.information(None, "Done", "Upload successful !")
+
+def commandGet(portString, command, flags):
+    """Sends a command through serial, returns the hardware's answer."""
+    s = connect(portString)
+    s.write(command.encode())
+    resp = s.readline()
+    if ((flags & FLAGS_USE_LOOPBACK) != 0) == True:
+        resp = s.readline()
+    s.close()
+    return resp
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

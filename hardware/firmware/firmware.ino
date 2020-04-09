@@ -2,13 +2,14 @@
 #include <EEPROM.h>
 
 /* Flags */
-#define USE_BT                  0b10000000
-#define USE_LOOPBACK            0b01000000
+// TODO: Better flags and/or use cases
+#define USE_LOOPBACK            0b10000000
+#define JOYSTICK_HAS_LEDS       0b01000000  // Unused
 #define JOYSTICK_LEDS_ARE_FIRST 0b00100000  // Unused
 #define HAS_4P                  0b00010000
-#define FOUR_P_TURNS_ON_ALL_P   0b00001000
+#define FOUR_P_TURNS_ON_ALL_P   0b00001000  // Not presently used but planned
 #define HAS_4K                  0b00000100
-#define FOUR_K_TURNS_ON_ALL_K   0b00000010
+#define FOUR_K_TURNS_ON_ALL_K   0b00000010  // Not presently used but planned
 #define HAS_EXTRA_UP_BUTTON     0b00000001
 
 /* Physical constants */
@@ -20,8 +21,6 @@
 
 /* Pinout */
 #define LED_DATA A0
-#define BT_TX 1
-#define BT_RX 0
 
 static const uint8_t pins[] = { A4, A5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
 static const char* names[] = { "RIGHT", "DOWN", "LEFT", "UP", "1P", "2P", "3P", "4P", "1K", "2K", "3K", "4K" };   // LED mappings should follow that order
@@ -64,7 +63,7 @@ void resetEEPROM()
   /* Sets all the bytes in the EEPROM to 0. Also sets up all button LEDs to be off by default, which is also fairly nice */
 
   EEPROM.write(0, 0x00);   // Set EEPROM Reset flag to 0. Any value other than 0xFF is fine
-  EEPROM.write(1, 0x03);   // Default delay is 3 cycles
+  EEPROM.write(1, 0x01);   // Default delay is 1 cycle
   EEPROM.write(2, flags);  // Conserve flags
   
   for (int i = EEPROM_OFFSET ; i < EEPROM.length() ; i++)
@@ -117,10 +116,10 @@ void getFlags()
 {
   char line[32] = { '\0' };
   
-  sprintf(line, "USE_BT = %d\n", ((flags & USE_BT) >> 7));
+  sprintf(line, "USE_LOOPBACK = %d\n", ((flags & USE_LOOPBACK) >> 7));
   Serial.print(line);
-  
-  sprintf(line, "USE_LOOPBACK = %d\n", ((flags & USE_LOOPBACK) >> 6));
+
+  sprintf(line, "JOYSTICK_HAS_LEDS = %d\n", ((flags & JOYSTICK_HAS_LEDS) >> 6));
   Serial.print(line);
   
   sprintf(line, "JOYSTICK_LEDS_ARE_FIRST = %d\n", (flags & JOYSTICK_LEDS_ARE_FIRST) >> 5);
@@ -186,11 +185,7 @@ void setup()
 { 
   // Turn on serial comms
   Serial.begin(9600);
-  //if (!(flags & USE_BT))
-  {
-    //Serial.print("Serial debug mode ON");
-    Serial.println("Hi");
-  }
+  Serial.println("Hi");
   
   // Check if EEPROM has been initialized
   if (EEPROM.read(0) == 0xFF)
@@ -257,9 +252,9 @@ void loop()
   if (Serial.available() != 0)
   {
     Serial.readBytes(serialBuffer, 128);
-
+    
     // Echo back command sent for debug
-    if (flags & USE_LOOPBACK)
+    if ((flags & USE_LOOPBACK) && (strstr(serialBuffer, "get flags") == 0))
     {
       char commandLoopbackBuffer[128];
       commandLoopbackBuffer[0] = '\0';
@@ -274,30 +269,42 @@ void loop()
     
     command = strtok(serialBuffer, " \n");
 
-    if (strcmp(command, "hwinfo") == 0)
+    if (strcmp(command, "get") == 0)
     {
-      char msg[3];
-      itoa(totalNumberOfKeys, msg, 10);
-      Serial.println(msg);
-    }
-    if (strcmp(command, "getcolorinfo") == 0)
-    {
-      char* msg = (char*)calloc(totalNumberOfKeys * 6, sizeof(char));
-
-      for (int i = 0; i < totalNumberOfKeys - 1; i++)
+      target = strtok(NULL, " \n");
+      if (strcmp(target, "colorinfo") == 0)
       {
-        int j = i * 6;
-        msg[j+0] = buttonsList[i].colorWhenNotPressed.r;
-        msg[j+1] = buttonsList[i].colorWhenNotPressed.g;
-        msg[j+2] = buttonsList[i].colorWhenNotPressed.b;
-        msg[j+3] = buttonsList[i].colorWhenPressed.r;
-        msg[j+4] = buttonsList[i].colorWhenPressed.g;
-        msg[j+5] = buttonsList[i].colorWhenPressed.b;
+        char* msg = (char*)calloc(totalNumberOfKeys * 6, sizeof(char));
+  
+        for (int i = 0; i < totalNumberOfKeys - 1; i++)
+        {
+          int j = i * 6;
+          msg[j+0] = buttonsList[i].colorWhenNotPressed.r;
+          msg[j+1] = buttonsList[i].colorWhenNotPressed.g;
+          msg[j+2] = buttonsList[i].colorWhenNotPressed.b;
+          msg[j+3] = buttonsList[i].colorWhenPressed.r;
+          msg[j+4] = buttonsList[i].colorWhenPressed.g;
+          msg[j+5] = buttonsList[i].colorWhenPressed.b;
+        }
+  
+        Serial.write(msg, totalNumberOfKeys * 6);
+        Serial.println();
+        free(msg);
       }
-
-      Serial.write(msg, totalNumberOfKeys * 6);
-      Serial.println();
-      free(msg);
+      else if (strcmp(target, "hwinfo") == 0)
+      {
+        char msg[3];
+        itoa(totalNumberOfKeys, msg, 10);
+        Serial.println(msg);
+      }
+      else if (strcmp(target, "flags") == 0)
+      {
+        Serial.println(flags);
+      }
+      else
+      {
+        Serial.println("Error: Unrecognized target");
+      }
     }
     else if (strcmp(command, "set") == 0)
     {
