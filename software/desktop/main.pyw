@@ -60,7 +60,7 @@ class portsWidget(QWidget):
             values += str(item.activeColor.blue())
             values += " "
             
-        commandSet(self.portsCombo.currentText(), values, self.parent.flags)
+        commandSet(self.portsCombo.currentText(), values, self.parent.flags.flags)
 
     def buildPortsComboBox(self, arr):
         """Creates a combo box containing the list of available serial ports."""
