@@ -7,16 +7,17 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 # What currently works
 
 * The firmware (it could use some cleaning though)
-* The desktop app
+* The desktop app (mostly)
 
 # What needs to be done
 
+* Add a widget to manipulate the delay to the desktop app
 * The mobile app
 * Release packages
 
 # What should ideally be done
 
-* Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs
+* ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically made for the Brook UFB
 
 # Releases
 

@@ -1,7 +1,10 @@
 software/desktop/bin/*
+software/desktop/build/*
 software/desktop/include/*
 software/desktop/lib/*
-software/desktop/share
+software/desktop/share/*
+software/desktop/Scripts/*
+software/desktop/__pycache__/*
 software/desktop/lib64
 software/desktop/pyvenv.cfg
 software/desktop/main.spec
