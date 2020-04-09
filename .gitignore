@@ -1,5 +1,6 @@
 software/desktop/bin/*
 software/desktop/build/*
+software/desktop/dist/*
 software/desktop/include/*
 software/desktop/lib/*
 software/desktop/share/*
