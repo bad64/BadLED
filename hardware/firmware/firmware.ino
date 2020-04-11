@@ -60,7 +60,7 @@ KeyValueMapping* dict;
 
 void resetEEPROM()
 {
-  /* Sets all the bytes in the EEPROM to 0. Also sets up all button LEDs to be off by default, which is also fairly nice */
+  /* Sets all the bytes in the EEPROM to 0. Also sets up all button LEDs to be off by default, which is fairly nice */
 
   EEPROM.write(0, 0x00);   // Set EEPROM Reset flag to 0. Any value other than 0xFF is fine
   EEPROM.write(1, 0x01);   // Default delay is 1 cycle
@@ -92,7 +92,7 @@ void initButtons(Button* arr, byte len, const char** names, const uint8_t* pins)
   }
 }
 
-bool updateColor(Button* btn, byte rn, byte gn, byte bn, byte ra, byte ga, byte ba)
+void updateColor(Button* btn, byte rn, byte gn, byte bn, byte ra, byte ga, byte ba)
 {
   /* Updates a button's color values */
   
@@ -108,37 +108,6 @@ bool updateColor(Button* btn, byte rn, byte gn, byte bn, byte ra, byte ga, byte 
   EEPROM.update(btn->address + 3, ra);
   EEPROM.update(btn->address + 4, ga);
   EEPROM.update(btn->address + 5, ba);
-
-  return true;
-}
-
-void getFlags()
-{
-  char line[32] = { '\0' };
-  
-  sprintf(line, "USE_LOOPBACK = %d\n", ((flags & USE_LOOPBACK) >> 7));
-  Serial.print(line);
-
-  sprintf(line, "JOYSTICK_HAS_LEDS = %d\n", ((flags & JOYSTICK_HAS_LEDS) >> 6));
-  Serial.print(line);
-  
-  sprintf(line, "JOYSTICK_LEDS_ARE_FIRST = %d\n", (flags & JOYSTICK_LEDS_ARE_FIRST) >> 5);
-  Serial.print(line);       
-  
-  sprintf(line, "HAS_4P = %d\n", (flags & HAS_4P) >> 4);
-  Serial.print(line);
-  
-  sprintf(line, "FOUR_P_TURNS_ON_ALL_P = %d\n", (flags & FOUR_P_TURNS_ON_ALL_P) >> 3);
-  Serial.print(line);
-  
-  sprintf(line, "HAS_4K = %d\n", (flags & HAS_4K) >> 2);
-  Serial.print(line);
-  
-  sprintf(line, "FOUR_K_TURNS_ON_ALL_K = %d\n", (flags & FOUR_K_TURNS_ON_ALL_K) >> 1);
-  Serial.print(line);
-  
-  sprintf(line, "HAS_EXTRA_UP_BUTTON = %d\n", (flags & HAS_EXTRA_UP_BUTTON));
-  Serial.print(line);
 }
 
 void setFlags(byte newFlags)
@@ -149,37 +118,84 @@ void setFlags(byte newFlags)
   flags = EEPROM.read(2); // To ensure reading happens after updating the flags in the EEPROM
 }
 
-void buttonToString(Button btn)
-{
-  /* Prints out a status report for a given button */
-  
-  char* msg = (char*)calloc(128, sizeof(char));
-  sprintf(msg, "Button %s on pin %d:\r\n\t", btn.comName, btn.pin);
-  Serial.print(msg);
-
-  sprintf(msg, "Address: 0x%02x\r\n\t", btn.address);
-  Serial.print(msg);
-
-  sprintf(msg, "Status: %d\r\n\t", btn.state);
-  Serial.print(msg);
-
-  sprintf(msg, "Update on: %d\r\n\t", btn.updateOn);
-  Serial.print(msg);
-
-  sprintf(msg, "Unpressed RGB values: (%d, %d, %d)\r\n\t", btn.colorWhenNotPressed.r, btn.colorWhenNotPressed.g, btn.colorWhenNotPressed.b);
-  Serial.print(msg);
-  
-  sprintf(msg, "Pressed RGB values: (%d, %d, %d)\r\n", btn.colorWhenPressed.r, btn.colorWhenPressed.g, btn.colorWhenPressed.b);
-  Serial.print(msg);
-
-  free(msg);
-}
-
 void setDelay(byte newDelay)
 {
   EEPROM.write(1, newDelay);
   updateDelay = EEPROM.read(1);
 }
+
+void panic(const char* errormsg)
+{
+  /* Panic "handler" if things go real south */
+  
+  Serial.print("FATAL ERROR: ");
+  Serial.println(errormsg);
+
+  while(true)
+  {
+    __asm__("nop\n\t");
+  }
+}
+
+#ifdef DEBUG
+/*
+ * Some human readable functions
+ */
+  void getFlags()
+  {
+    char line[32] = { '\0' };
+    
+    sprintf(line, "USE_LOOPBACK = %d\n", ((flags & USE_LOOPBACK) >> 7));
+    Serial.print(line);
+  
+    sprintf(line, "JOYSTICK_HAS_LEDS = %d\n", ((flags & JOYSTICK_HAS_LEDS) >> 6));
+    Serial.print(line);
+    
+    sprintf(line, "JOYSTICK_LEDS_ARE_FIRST = %d\n", (flags & JOYSTICK_LEDS_ARE_FIRST) >> 5);
+    Serial.print(line);       
+    
+    sprintf(line, "HAS_4P = %d\n", (flags & HAS_4P) >> 4);
+    Serial.print(line);
+    
+    sprintf(line, "FOUR_P_TURNS_ON_ALL_P = %d\n", (flags & FOUR_P_TURNS_ON_ALL_P) >> 3);
+    Serial.print(line);
+    
+    sprintf(line, "HAS_4K = %d\n", (flags & HAS_4K) >> 2);
+    Serial.print(line);
+    
+    sprintf(line, "FOUR_K_TURNS_ON_ALL_K = %d\n", (flags & FOUR_K_TURNS_ON_ALL_K) >> 1);
+    Serial.print(line);
+    
+    sprintf(line, "HAS_EXTRA_UP_BUTTON = %d\n", (flags & HAS_EXTRA_UP_BUTTON));
+    Serial.print(line);
+  }
+  
+  void buttonToString(Button btn)
+  {
+    /* Prints out a status report for a given button */
+    
+    char* msg = (char*)calloc(128, sizeof(char));
+    sprintf(msg, "Button %s on pin %d:\r\n\t", btn.comName, btn.pin);
+    Serial.print(msg);
+  
+    sprintf(msg, "Address: 0x%02x\r\n\t", btn.address);
+    Serial.print(msg);
+  
+    sprintf(msg, "Status: %d\r\n\t", btn.state);
+    Serial.print(msg);
+  
+    sprintf(msg, "Update on: %d\r\n\t", btn.updateOn);
+    Serial.print(msg);
+  
+    sprintf(msg, "Unpressed RGB values: (%d, %d, %d)\r\n\t", btn.colorWhenNotPressed.r, btn.colorWhenNotPressed.g, btn.colorWhenNotPressed.b);
+    Serial.print(msg);
+    
+    sprintf(msg, "Pressed RGB values: (%d, %d, %d)\r\n", btn.colorWhenPressed.r, btn.colorWhenPressed.g, btn.colorWhenPressed.b);
+    Serial.print(msg);
+  
+    free(msg);
+  }
+#endif
 
 void setup()
 { 
@@ -209,11 +225,7 @@ void setup()
   buttonsList = (Button*)calloc((totalNumberOfKeys), sizeof(Button));
   if (!buttonsList)
   {
-    Serial.println("FATAL ERROR: Failure to allocate memory for button array !!");
-    while(true)
-    {
-      __asm__("nop\n\t");
-    }
+    panic("Failure to allocate memory for button array !!");
   }
   initButtons(buttonsList, totalNumberOfKeys, names, pins);
 
@@ -221,11 +233,7 @@ void setup()
   ledsList = (CRGB*)calloc((totalNumberOfLeds), sizeof(CRGB));
   if (!ledsList)
   {
-    Serial.println("FATAL ERROR: Failure to allocate memory for LED array !!");
-    while(true)
-    {
-      __asm__("nop\n\t");
-    }
+    panic("Failure to allocate memory for LED array !!");
   }
   FastLED.addLeds<WS2812B, LED_DATA, GRB>(ledsList, totalNumberOfLeds);
 
@@ -233,11 +241,7 @@ void setup()
   /*dict = (KeyValueMapping*)malloc((totalNumberOfKeys+1)*sizeof(KeyValueMapping));
   if (!dict)
   {
-    Serial.println("FATAL ERROR: Failure to allocate memory for key/value associative array !!");
-    while(true)
-    {
-      __asm__("nop\n\t");
-    }
+    panic("Failure to allocate memory for key/value associative array !!");
   }*/
     
   // Set up pins
@@ -315,50 +319,12 @@ void loop()
         byte newFlags = atoi(args);
         setFlags(newFlags);
         Serial.println("Flags updated");
-        getFlags();
+        
+        #ifdef DEBUG
+          getFlags();
+        #endif
       }
-      else if (strcmp(target, "button") == 0)
-      {
-        byte buttonId, rn, gn, bn, ra, ga, ba;
-  
-        char* args = strtok(NULL, " \n");
-        buttonId = atoi(args);
-  
-        if ((buttonId < 0) || (buttonId > totalNumberOfKeys))
-        {
-          Serial.print("Error: invalid button ID");
-        }
-        else
-        {
-          char* buffer;
-          
-          buffer = strtok(NULL, " \n");
-          rn = atoi(buffer);
-          buffer = strtok(NULL, " \n");
-          gn = atoi(buffer);
-          buffer = strtok(NULL, " \n");
-          bn = atoi(buffer);
-          buffer = strtok(NULL, " \n");
-          ra = atoi(buffer);
-          buffer = strtok(NULL, " \n");
-          ga = atoi(buffer);
-          buffer = strtok(NULL, " \n");
-          ba = atoi(buffer);
-          
-          updateColor(&buttonsList[buttonId], rn, gn, bn, ra, ga, ba);
-          buttonToString(buttonsList[buttonId]);
-        }
-      }
-      else if (strcmp(target, "delay") == 0)
-      {
-        byte newDelay;
-        char* args = strtok(NULL, " \n");
-        newDelay = atoi(args);
-
-        setDelay(newDelay);
-        Serial.println("OK");
-      }
-      else if (strcmp(target, "allbuttons") == 0)
+      else if (strcmp(target, "buttons") == 0)
       {
         for (int i = 0; i < totalNumberOfKeys - 1; i++)
         {
@@ -377,11 +343,28 @@ void loop()
           ga = atoi(buffer);
           buffer = strtok(NULL, " \n");
           ba = atoi(buffer);
-          
-          updateColor(&buttonsList[i], rn, gn, bn, ra, ga, ba);
-          //buttonToString(buttonsList[i]);
+
+          // Don't update the button if there is no color change to save on EEPROM writes
+          if ((buttonsList[i].colorWhenNotPressed.r != rn) || (buttonsList[i].colorWhenNotPressed.g != gn) || (buttonsList[i].colorWhenNotPressed.b != bn) ||
+          (buttonsList[i].colorWhenPressed.r != ra) || (buttonsList[i].colorWhenPressed.g != ga) || (buttonsList[i].colorWhenPressed.b != ba))
+          {
+            updateColor(&buttonsList[i], rn, gn, bn, ra, ga, ba);
+            //buttonToString(buttonsList[i]);
+          }
         }
         Serial.println("OK");
+      }
+      else if (strcmp(target, "delay") == 0)
+      {
+        byte newDelay;
+        char* args = strtok(NULL, " \n");
+        newDelay = atoi(args);
+
+        setDelay(newDelay);
+        char* msg = (char*)calloc(16, sizeof(char));
+        sprintf(msg, "Delay set to %d", newDelay); 
+        Serial.println(msg);
+        free(msg);
       }
       else
       {
@@ -390,37 +373,44 @@ void loop()
     }
     else if (strcmp(command, "show") == 0)
     {
-      target = strtok(NULL, " \n");
-      
-      if (strcmp(target, "flags") == 0)
-      {
-        getFlags();
-      }
-      else if (strcmp(target, "button") == 0)
-      {
-        byte buttonId;
-  
-        char* args = strtok(NULL, " \n");
-        if (args == NULL)
+      #ifdef DEBUG
+        /*
+         * Most stuff here is gonna be human-readable debug info
+         */
+        target = strtok(NULL, " \n");
+        
+        if (strcmp(target, "flags") == 0)
         {
-          Serial.println("Error: Missing button ID");
+          getFlags();
+        }
+        else if (strcmp(target, "button") == 0)
+        {
+          byte buttonId;
+    
+          char* args = strtok(NULL, " \n");
+          if (args == NULL)
+          {
+            Serial.println("Error: Missing button ID");
+          }
+          else
+          {
+            buttonId = atoi(args);
+            buttonToString(buttonsList[buttonId]);
+          }
+        }
+        else if (strcmp(target, "delay") == 0)
+        {
+          char msg[4];
+          itoa(updateDelay, msg, 10);
+          Serial.println(msg);
         }
         else
         {
-          buttonId = atoi(args);
-          buttonToString(buttonsList[buttonId]);
+          Serial.println("Error: Unrecognized item");
         }
-      }
-      else if (strcmp(target, "delay") == 0)
-      {
-        char msg[4];
-        itoa(updateDelay, msg, 10);
-        Serial.println(msg);
-      }
-      else
-      {
-        Serial.println("Error: Unrecognized item");
-      }
+      #else
+        Serial.println("Error: ROM compiled without debug options");
+      #endif
     }
     else if (strcmp(command, "reset") == 0)
     {

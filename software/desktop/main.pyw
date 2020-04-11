@@ -44,7 +44,7 @@ class portsWidget(QWidget):
         self.setLayout(self.layout)
 
     def uploadValues(self):
-        values = "set allbuttons "
+        values = "set buttons "
 
         for item in self.parent.buttons:
             values += str(item.passiveColor.red())
