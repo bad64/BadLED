@@ -7,9 +7,9 @@
 #define JOYSTICK_HAS_LEDS       0b01000000  // Unused
 #define JOYSTICK_LEDS_ARE_FIRST 0b00100000  // Unused
 #define HAS_4P                  0b00010000
-#define FOUR_P_TURNS_ON_ALL_P   0b00001000  // Not presently used but planned
+#define FOUR_P_TURNS_ON_ALL_P   0b00001000
 #define HAS_4K                  0b00000100
-#define FOUR_K_TURNS_ON_ALL_K   0b00000010  // Not presently used but planned
+#define FOUR_K_TURNS_ON_ALL_K   0b00000010
 #define HAS_EXTRA_UP_BUTTON     0b00000001
 
 /* Physical constants */
@@ -49,14 +49,6 @@ typedef struct
   State state;
 } Button;
 Button* buttonsList;
-
-typedef struct
-{
-  byte key;
-  byte value[4];
-  byte values;
-} KeyValueMapping;
-KeyValueMapping* dict;
 
 void resetEEPROM()
 {
@@ -236,13 +228,6 @@ void setup()
     panic("Failure to allocate memory for LED array !!");
   }
   FastLED.addLeds<WS2812B, LED_DATA, GRB>(ledsList, totalNumberOfLeds);
-
-  // Initialize mappings
-  /*dict = (KeyValueMapping*)malloc((totalNumberOfKeys+1)*sizeof(KeyValueMapping));
-  if (!dict)
-  {
-    panic("Failure to allocate memory for key/value associative array !!");
-  }*/
     
   // Set up pins
   for (int i = 0; i < totalNumberOfKeys; i++)
@@ -258,7 +243,7 @@ void loop()
     Serial.readBytes(serialBuffer, 128);
     
     // Echo back command sent for debug
-    if ((flags & USE_LOOPBACK) && (strstr(serialBuffer, "get flags") == 0))
+    if ((flags & USE_LOOPBACK) && (strstr(serialBuffer, "get flags") == 0)) // Never send loopback when asking for flags
     {
       char commandLoopbackBuffer[128];
       commandLoopbackBuffer[0] = '\0';
@@ -304,6 +289,12 @@ void loop()
       else if (strcmp(target, "flags") == 0)
       {
         Serial.println(flags);
+      }
+      else if (strcmp(target, "delay") == 0)
+      {
+        char msg[4];
+        itoa(updateDelay, msg, 10);
+        Serial.println(msg);
       }
       else
       {
@@ -398,12 +389,6 @@ void loop()
             buttonToString(buttonsList[buttonId]);
           }
         }
-        else if (strcmp(target, "delay") == 0)
-        {
-          char msg[4];
-          itoa(updateDelay, msg, 10);
-          Serial.println(msg);
-        }
         else
         {
           Serial.println("Error: Unrecognized item");
@@ -431,13 +416,28 @@ void loop()
     {
       if (digitalRead(buttonsList[i].pin) == LOW)
       {
-        buttonsList[i].currentColor = buttonsList[i].colorWhenPressed;
-        buttonsList[i].state = ACTIVE;
+        int j;
 
-        if (counter + updateDelay < 65535) 
-          buttonsList[i].updateOn = counter + updateDelay;
+        if ( ((strcmp(buttonsList[i].comName, "4P") == 0) && ((flags & FOUR_P_TURNS_ON_ALL_P) != 0)) ||
+        ((strcmp(buttonsList[i].comName, "4K") == 0) && ((flags & FOUR_K_TURNS_ON_ALL_K) != 0)) )
+        {
+          j = i - 3;
+        }
         else
-          buttonsList[i].updateOn = (counter + updateDelay) - 65535;
+        {
+          j = i;
+        }
+
+        for (j; j <= i; j++)
+        {
+          buttonsList[j].currentColor = buttonsList[i].colorWhenPressed;  // TODO: Consider adding a flag or something to tell the board if the buttons should be lit with the active color of 4P/4K or their own active color
+          buttonsList[j].state = ACTIVE;
+  
+          if (counter + updateDelay < 65535) 
+            buttonsList[j].updateOn = counter + updateDelay;
+          else
+            buttonsList[j].updateOn = (counter + updateDelay) - 65535;
+        }
       }
       else
       {

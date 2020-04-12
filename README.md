@@ -17,19 +17,17 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 
 # What should ideally be done
 
-* ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook UFB
+* ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook boards as the Nano breakout plugs directly onto the Brook header
+* Support to tell if 4P/4K should light up the row with its own color or each button with their normal pressed color
 
-# Changelog (11/4/20)
+# Changelog (12/4/20)
 
 * Firmware
-    * Added compile time debug flag to disable human readable output to save memory
-    * Generally moved most human readable output to be under that debug flag
-    * Made the panic handler into its own function
-    * Removed the ability to address buttons one at a time (because the designer will not do that, *ever*)
-    * In accordance with the above, renamed the target to address all buttons from "allbuttons" to "buttons"
-    * Color update routine now checks if there is a difference between old and new RGB values before calling updateButton()
+    * 4P and 4K now light up the entire row as their color if the flags tell them to do so
 * Software
-    * Desktop: Applied target change here as well (see bullet points 4 and 5 in Firmware section)
+    * Added a spinbox widget to set the delay between two LED updates
+    * Eliminated redundant function calls (e.g. having two versions of getFlags())
+    * Added a function called upon COM port change that re-polls all values and rebuilds the UI
 
 # Releases
 

@@ -1,7 +1,7 @@
 # Qt
 from PyQt5.QtWidgets import QApplication, QMessageBox, QWidget
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout, QFrame
-from PyQt5.QtWidgets import QColorDialog, QComboBox, QLabel, QPushButton
+from PyQt5.QtWidgets import QColorDialog, QComboBox, QLabel, QPushButton, QSpinBox
 from PyQt5.QtWidgets import QCheckBox
 from PyQt5.QtGui import QIcon, QColor, qRgb
 
@@ -22,6 +22,34 @@ FLAGS_FOUR_K_TURNS_ON_ALL_K   = 2
 FLAGS_HAS_EXTRA_UP_BUTTON     = 1
 
 # Widgets
+class delayWidget(QWidget):
+    def __init__(self, parent):
+        super(delayWidget, self).__init__(parent)
+        self.parent = parent
+
+        self.label = QLabel("Delay: ")
+        self.spinbox = QSpinBox(self)
+        self.spinbox.setMaximum(255)
+        self.spinbox.setValue = int(self.getDelay())
+        self.button = QPushButton("Update delay")
+        self.button.clicked.connect(lambda: self.setDelay())
+
+        self.layout = QHBoxLayout()
+
+        self.layout.addWidget(self.label)
+        self.layout.addWidget(self.spinbox)
+        self.layout.addWidget(self.button)
+
+        self.setLayout(self.layout)
+
+    def getDelay(self):
+        """Gets the delay between two button updates in cycles from the board as one byte"""
+        return commandGet(self.parent.portSelect.portsCombo.currentText(), "get flags", 0)
+
+    def setDelay(self):
+        """Sets the delay between two button updates"""
+        commandSet(self.parent.portSelect.portsCombo.currentText(), "set delay {}".format(self.spinbox.value()), self.parent.flags.flags)
+
 class portsWidget(QWidget):
     def __init__(self, parent):
         super(portsWidget, self).__init__(parent)
@@ -31,8 +59,9 @@ class portsWidget(QWidget):
         self.serial = serial.Serial()
         self.ports = parent.getPorts()
         self.portsCombo = QComboBox()
+        #self.portsCombo.currentIndexChanged.connect(lambda: parent.changePort())
         self.buildPortsComboBox(self.ports)
-        self.upload = QPushButton("Upload")
+        self.upload = QPushButton("Upload colors")
         self.upload.clicked.connect(lambda: self.uploadValues())
 
         self.layout = QHBoxLayout()
@@ -44,6 +73,7 @@ class portsWidget(QWidget):
         self.setLayout(self.layout)
 
     def uploadValues(self):
+        """Uploads RGB values to the board"""
         values = "set buttons "
 
         for item in self.parent.buttons:
@@ -139,9 +169,11 @@ class flagsWidget(QWidget):
         self.setLayout(self.layout)
 
     def getFlags(self):
+        """Gets flag values from the board as one byte"""
         return commandGet(self.parent.portSelect.portsCombo.currentText(), "get flags", 0)
 
     def setFlags(self):
+        """Sends flag values to the board as one byte"""
         self.flags = 0
         if (self.useLoopback.isChecked()):
             self.flags += FLAGS_USE_LOOPBACK
@@ -227,29 +259,30 @@ class MainWindow(QWidget):
         self.setWindowTitle("BadLED Control Deck")
 
         # Ports
+        print("1")
         self.portSelect = portsWidget(self)
 
         # Flags
+        print("2")
         self.flags = flagsWidget(self)
 
+        # Delay
+        print("3")
+        self.delay = delayWidget(self)
+
         # Buttons
-        self.names = [ "RIGHT", "DOWN", "LEFT", "UP", "1P", "2P", "3P", "4P", "1K", "2K", "3K", "4K" ]
+        print("4")
         self.numberOfButtons = int(self.getButtons());
         self.buttons = self.buildButtonArray()
 
         # Panels
+        print("5")
         self.panels = []
         self.panelLayouts = []
+        self.buildPanels()
 
-        for i in range(int(self.numberOfButtons / 4)):
-            self.panels.append(QFrame(self))
-            self.panelLayouts.append(QVBoxLayout())
-
-        for i in range(len(self.panelLayouts)):
-            for j in range(i*4, i*4+4):
-                self.panelLayouts[i].addWidget(self.buttons[j])
-            self.panels[i].setLayout(self.panelLayouts[i])
-            self.panels[i].setFrameStyle(QFrame.Raised | QFrame.Panel)
+        # Needs to be connected here to update info when a new port is selected
+        self.portSelect.portsCombo.currentIndexChanged.connect(lambda: self.changePort())
             
         # Layout
         self.mainVBox = QVBoxLayout()       # Main layout
@@ -258,8 +291,9 @@ class MainWindow(QWidget):
         for i in range(len(self.panels)):
             self.buttonsHBox.addWidget(self.panels[i])
 
-        self.mainVBox.addWidget(self.flags)
         self.mainVBox.addWidget(self.portSelect)
+        self.mainVBox.addWidget(self.flags)
+        self.mainVBox.addWidget(self.delay)
         self.mainVBox.addLayout(self.buttonsHBox)
 
         self.setLayout(self.mainVBox)
@@ -289,14 +323,14 @@ class MainWindow(QWidget):
                 pass
         return result
 
-    def buildPortsComboBox(self, arr):
-        """Creates a combo box containing the list of available serial ports."""
-        for i in range(len(arr)):
-            self.portsCombo.addItem(arr[i])
-
-    def getFlags(self):
-        return commandGet(self.portSelect.portsCombo.currentText(), "get flags", 0)
-
+    def changePort(self):
+        """Polls a new port and updates values accordingly"""
+        self.flags.getFlags()
+        self.delay.getDelay()
+        self.numberOfButtons = int(self.getButtons());
+        self.buttons = self.buildButtonArray()
+        self.buildPanels()
+        
     def getButtons(self):
         """Gets the number of buttons on the stick. Implicitly trusts the hardware to give the right info."""
         return commandGet(self.portSelect.portsCombo.currentText(), "get hwinfo", self.flags.flags)
@@ -305,6 +339,18 @@ class MainWindow(QWidget):
         """Gets color data from the Arduino."""
         return commandGet(self.portSelect.portsCombo.currentText(), "get colorinfo", self.flags.flags)
 
+    def buildPanels(self):
+        """Builds button panels"""
+        for i in range(int(self.numberOfButtons / 4)):
+                self.panels.append(QFrame(self))
+                self.panelLayouts.append(QVBoxLayout())
+
+        for i in range(len(self.panelLayouts)):
+            for j in range(i*4, i*4+4):
+                self.panelLayouts[i].addWidget(self.buttons[j])
+            self.panels[i].setLayout(self.panelLayouts[i])
+            self.panels[i].setFrameStyle(QFrame.Raised | QFrame.Panel)
+
     def buildButtonArray(self):
         """Populates the array of arcadeButton widgets using color information provided by the hardware"""
         arr = []
@@ -312,11 +358,11 @@ class MainWindow(QWidget):
         
         for i in range(self.numberOfButtons - 1):
             j = i * 6
-            arr.append(arcadeButton(self, self.names[i], colorinfo[j:j+7]))
+            arr.append(arcadeButton(self, "LED {}".format(i+1), colorinfo[j:j+7]))
         return arr
 
 def connect(portString):
-    """Connects to a serial port. Since they are enumered separately, we assume the port is available by default."""
+    """Connects to a serial port. Since they are enumerated separately, we assume the port is available by default."""
     s = serial.Serial(portString, timeout=5)
     resp = s.readline()
     return s
