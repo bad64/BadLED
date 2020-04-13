@@ -29,6 +29,8 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
     * Sync'd protocol changes with the firmware, which significantly speeds up application startup as a result
     * Added a message if the software cannot find any active serial port on the host
     * Added dialog boxes that pop up if the device on the selected serial port does not identify itself as a BadLED controller
+    * Renamed "delay" to "Glow fade-out speed" for clarity
+    * Rewrote the button widget for better color previewing and clarity
 
 # Releases
 

@@ -287,7 +287,7 @@ void loop()
       }
       else
       {
-        Serial.println("Error: Unrecognized target");
+        Serial.println("ERROR: Unrecognized target");
       }
     }
     else if (strcmp(command, "set") == 0)
@@ -348,7 +348,7 @@ void loop()
       }
       else
       {
-        Serial.println("Error: Unrecognized target");
+        Serial.println("ERROR: Unrecognized target");
       }
     }
     else if (strcmp(command, "show") == 0)
@@ -380,10 +380,10 @@ void loop()
         }
         else
         {
-          Serial.println("Error: Unrecognized item");
+          Serial.println("ERROR: Unrecognized item");
         }
       #else
-        Serial.println("Error: ROM compiled without debug options");
+        Serial.println("INFO: ROM compiled without debug options");
       #endif
     }
     else if (strcmp(command, "reset") == 0)

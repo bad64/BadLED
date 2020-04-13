@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox, QWidget
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout, QFrame
 from PyQt5.QtWidgets import QColorDialog, QComboBox, QLabel, QPushButton, QSpinBox
 from PyQt5.QtWidgets import QCheckBox
-from PyQt5.QtGui import QIcon, QColor, qRgb
+from PyQt5.QtGui import QIcon, QColor, QPalette, qRgb
 
 # Serial
 import serial, serial.tools.list_ports
@@ -27,11 +27,11 @@ class delayWidget(QWidget):
         super(delayWidget, self).__init__(parent)
         self.parent = parent
 
-        self.label = QLabel("Delay: ")
+        self.label = QLabel("Glow fade-out speed: ")
         self.spinbox = QSpinBox(self)
         self.spinbox.setMaximum(255)
         self.spinbox.setValue(delay)
-        self.button = QPushButton("Update delay")
+        self.button = QPushButton("Update glow fade-out speed")
         self.button.clicked.connect(lambda: self.setDelay())
 
         self.layout = QHBoxLayout()
@@ -199,22 +199,20 @@ class arcadeButton(QWidget):
         # Properties
         self.name = QLabel(name)
         self.parent = parent
-        try:
-            self.passiveColor = QColor(qRgb(colorinfo[0], colorinfo[1], colorinfo[2]))
-            self.activeColor = QColor(qRgb(colorinfo[3], colorinfo[4], colorinfo[5]))
-        except IndexError as e:
-            print(colorinfo.encode('utf-8'))
-            print(parent.values.encode('utf-8'))
-            raise e
+        self.passiveColor = QColor(qRgb(colorinfo[0], colorinfo[1], colorinfo[2]))
+        self.activeColor = QColor(qRgb(colorinfo[3], colorinfo[4], colorinfo[5]))
 
         # Content
-        self.passiveColorButton = QPushButton("Passive")
+        self.passiveColorLabel = QLabel("Not pressed: ")
+        self.passiveColorButton = QPushButton("Click me !")
         self.passiveColorButton.clicked.connect(lambda: self.openColorDialog(0))
-        self.passiveColorText = QLabel("({}, {}, {})".format(self.passiveColor.red(), self.passiveColor.green(), self.passiveColor.blue()))
-
-        self.activeColorButton = QPushButton("Active")
+        self.passiveColorButton.setStyleSheet("color: rgb({}, {}, {}); background-color: rgb({}, {}, {})".format(self.passiveColor.red(), self.passiveColor.green(), self.passiveColor.blue(), \
+                                                                                                                 self.passiveColor.red(), self.passiveColor.green(), self.passiveColor.blue()))
+        self.activeColorLabel = QLabel("Pressed: ")
+        self.activeColorButton = QPushButton("Click me !")
         self.activeColorButton.clicked.connect(lambda: self.openColorDialog(1))
-        self.activeColorText = QLabel("({}, {}, {})".format(self.activeColor.red(), self.activeColor.green(), self.activeColor.blue()))
+        self.activeColorButton.setStyleSheet("color: rgb({}, {}, {}); background-color: rgb({}, {}, {})".format(self.activeColor.red(), self.activeColor.green(), self.activeColor.blue(), \
+                                                                                                                 self.activeColor.red(), self.activeColor.green(), self.activeColor.blue()))
 
         # Layout
         self.mainBox = QVBoxLayout()
@@ -223,12 +221,12 @@ class arcadeButton(QWidget):
         self.subBox2 = QHBoxLayout()
 
         self.subBox0.addWidget(self.name)
-        
-        self.subBox1.addWidget(self.passiveColorButton)
-        self.subBox1.addWidget(self.passiveColorText)
 
+        self.subBox1.addWidget(self.passiveColorLabel)
+        self.subBox1.addWidget(self.passiveColorButton)
+
+        self.subBox2.addWidget(self.activeColorLabel)
         self.subBox2.addWidget(self.activeColorButton)
-        self.subBox2.addWidget(self.activeColorText)
 
         self.mainBox.addLayout(self.subBox0)
         self.mainBox.addLayout(self.subBox1)
@@ -244,10 +242,12 @@ class arcadeButton(QWidget):
         if color.isValid():
             if selector == 0:
                 self.passiveColor = color
-                self.passiveColorText.setText("({}, {}, {})".format(self.passiveColor.red(), self.passiveColor.green(), self.passiveColor.blue()))
+                self.passiveColorButton.setStyleSheet("color: rgb({}, {}, {}); background-color: rgb({}, {}, {})".format(self.passiveColor.red(), self.passiveColor.green(), self.passiveColor.blue(), \
+                                                                                                                 self.passiveColor.red(), self.passiveColor.green(), self.passiveColor.blue()))
             elif selector == 1:
                 self.activeColor = color
-                self.activeColorText.setText("({}, {}, {})".format(self.activeColor.red(), self.activeColor.green(), self.activeColor.blue()))
+                self.activeColorButton.setStyleSheet("color: rgb({}, {}, {}); background-color: rgb({}, {}, {})".format(self.activeColor.red(), self.activeColor.green(), self.activeColor.blue(), \
+                                                                                                                 self.activeColor.red(), self.activeColor.green(), self.activeColor.blue()))
 
 class MainWindow(QWidget):
     def __init__(self):
