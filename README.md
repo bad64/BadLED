@@ -25,7 +25,8 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
     * Hardware info is now gathered through a single transaction
     * Added digital signature string to tell the app that it is indeed talking with a BadLED controller
 * Software
-    * Sync'd changes with the firmware, which significantly speeds up application startup as a result
+    * Fixed a few typos here and there
+    * Sync'd protocol changes with the firmware, which significantly speeds up application startup as a result
     * Added a message if the software cannot find any active serial port on the host
     * Added dialog boxes that pop up if the device on the selected serial port does not identify itself as a BadLED controller
 

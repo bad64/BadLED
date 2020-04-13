@@ -51,12 +51,12 @@ class portsWidget(QWidget):
         super(portsWidget, self).__init__(parent)
         self.parent = parent
 
-        self.portsLabel = QLabel("Ports: ")
+        self.portsLabel = QLabel("Serial port: ")
         self.serial = serial.Serial()
         self.ports = parent.getPorts()
         self.portsCombo = QComboBox()
         self.buildPortsComboBox(self.ports)
-        self.upload = QPushButton("Upload colors")
+        self.upload = QPushButton("Update colors")
         self.upload.clicked.connect(lambda: self.uploadValues())
 
         self.layout = QHBoxLayout()
@@ -129,7 +129,7 @@ class flagsWidget(QWidget):
         else:
             self.fourPLightsAll.setChecked(False)
 
-        self.has4K = QCheckBox("Has 4P button:")
+        self.has4K = QCheckBox("Has 4K button")
         if ((self.flags & FLAGS_HAS_4K) != 0):
             self.has4K.setChecked(True)
         else:
@@ -315,15 +315,22 @@ class MainWindow(QWidget):
                 result.append(port)
             except (OSError, serial.SerialException):
                 pass
-        return result
+
+        if not result:
+            QMessageBox.critical(None, "Error", "No available serial devices have been found. Aborting.")
+            sys.exit(0)
+        else:
+            return result
 
     def changePort(self):
         """Polls a new port and updates values accordingly"""
-        self.flags.getFlags()
-        self.delay.getDelay()
-        self.numberOfButtons = int(self.getButtons());
-        self.buttons = self.buildButtonArray()
-        self.buildPanels()
+        c = self.getHwInfo()
+
+        if c is not None:
+            self.numberOfButtons = self.values[0];
+            self.buttons = self.buildButtonArray()
+            self.delay = delayWidget(self, self.values[1])
+            self.flags = flagsWidget(self, self.values[2])            
         
     def getHwInfo(self):
         """Gets just about everything in a single command (number of buttons, delay, flags, and color info)."""
@@ -378,6 +385,7 @@ def commandGet(portString, command, flags):
     s = connect(portString)
     if s == None:
         QMessageBox.critical(None, "Error", "Device on {} does not seem to be a BadLED controller".format(portString))
+        return None
     else:
         s.write(command.encode())
         resp = s.readline()
