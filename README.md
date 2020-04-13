@@ -6,12 +6,11 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 
 # What currently works
 
-* The firmware (it could use some cleaning though)
-* The desktop app (mostly)
+* The firmware
+* The desktop app (As of today (13/4/20), I'm pretty sure it is at least feature-complete)
 
 # What needs to be done
 
-* Add a widget to manipulate the delay to the desktop app
 * The mobile app
 * Release packages
 
@@ -20,14 +19,15 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 * ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook boards as the Nano breakout plugs directly onto the Brook header
 * Support to tell if 4P/4K should light up the row with its own color or each button with their normal pressed color
 
-# Changelog (12/4/20)
+# Changelog (13/4/20)
 
 * Firmware
-    * 4P and 4K now light up the entire row as their color if the flags tell them to do so
+    * Hardware info is now gathered through a single transaction
+    * Added digital signature string to tell the app that it is indeed talking with a BadLED controller
 * Software
-    * Added a spinbox widget to set the delay between two LED updates
-    * Eliminated redundant function calls (e.g. having two versions of getFlags())
-    * Added a function called upon COM port change that re-polls all values and rebuilds the UI
+    * Sync'd changes with the firmware, which significantly speeds up application startup as a result
+    * Added a message if the software cannot find any active serial port on the host
+    * Added dialog boxes that pop up if the device on the selected serial port does not identify itself as a BadLED controller
 
 # Releases
 
@@ -59,3 +59,7 @@ A: Pretty sure you can ! They use the same LEDs and protocol.
 
 **Q: On which buttons do the rings fit ?**  
 A: They were measured so as to fit Crown 202c 30mm buttons. If you're willing to use hot glue, you can definitely put them under 30mm GamerFingers too, and they're likely too wide for Sanwas. I have no idea if they fit on Seimitsu buttons without hot glue however.
+
+**Q: Why Python and not like C# or something else ? I hate interpreted languages !**  
+Short A: Because Trolltech screwed up.  
+Longer A: I originally wanted a cross-platform GUI since I work a lot on Linux, and having prior knowledge of Qt, decided to use that with some C++. However, what happened instead was that I discovered Trolltech made it semi-mandatory to sign up with an account in order to install the Qt SDK (~~or I could cut internet during installation, which I learned only after I was well underway with the Python version~~). I also found out that, for some reason, PyQt didn't have this problem, so I pretty much ran with it. (Also serial comms in C++ is a nightmare compared to doing it in Python)

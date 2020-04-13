@@ -23,14 +23,14 @@ FLAGS_HAS_EXTRA_UP_BUTTON     = 1
 
 # Widgets
 class delayWidget(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, delay):
         super(delayWidget, self).__init__(parent)
         self.parent = parent
 
         self.label = QLabel("Delay: ")
         self.spinbox = QSpinBox(self)
         self.spinbox.setMaximum(255)
-        self.spinbox.setValue = int(self.getDelay())
+        self.spinbox.setValue(delay)
         self.button = QPushButton("Update delay")
         self.button.clicked.connect(lambda: self.setDelay())
 
@@ -41,10 +41,6 @@ class delayWidget(QWidget):
         self.layout.addWidget(self.button)
 
         self.setLayout(self.layout)
-
-    def getDelay(self):
-        """Gets the delay between two button updates in cycles from the board as one byte"""
-        return commandGet(self.parent.portSelect.portsCombo.currentText(), "get flags", 0)
 
     def setDelay(self):
         """Sets the delay between two button updates"""
@@ -59,7 +55,6 @@ class portsWidget(QWidget):
         self.serial = serial.Serial()
         self.ports = parent.getPorts()
         self.portsCombo = QComboBox()
-        #self.portsCombo.currentIndexChanged.connect(lambda: parent.changePort())
         self.buildPortsComboBox(self.ports)
         self.upload = QPushButton("Upload colors")
         self.upload.clicked.connect(lambda: self.uploadValues())
@@ -98,37 +93,37 @@ class portsWidget(QWidget):
             self.portsCombo.addItem(arr[i])      
 
 class flagsWidget(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, flags):
         super(flagsWidget, self).__init__(parent)
         self.parent = parent
-        self.flags = int(self.getFlags())
+        self.flags = flags
 
         # Set checkboxes
-        self.useLoopback = QCheckBox("Use loopback: ")
+        self.useLoopback = QCheckBox("Use loopback")
         if ((self.flags & FLAGS_USE_LOOPBACK) != 0):
             self.useLoopback.setChecked(True)
         else:
             self.useLoopback.setChecked(False)
 
-        self.joyHasLeds = QCheckBox("Joystick has LEDs: ")
+        self.joyHasLeds = QCheckBox("Joystick has LEDs")
         if ((self.flags & FLAGS_JOYSTICK_HAS_LEDS) != 0):
             self.joyHasLeds.setChecked(True)
         else:
             self.joyHasLeds.setChecked(False)
 
-        self.joyLedsAreFirst = QCheckBox("Joystick LEDs are first:")
+        self.joyLedsAreFirst = QCheckBox("Joystick LEDs are first")
         if ((self.flags & FLAGS_JOYSTICK_LEDS_ARE_FIRST) != 0):
             self.joyLedsAreFirst.setChecked(True)
         else:
             self.joyLedsAreFirst.setChecked(False)
 
-        self.has4P = QCheckBox("Has 4P button:")
+        self.has4P = QCheckBox("Has 4P button")
         if ((self.flags & FLAGS_HAS_4P) != 0):
             self.has4P.setChecked(True)
         else:
             self.has4P.setChecked(False)
 
-        self.fourPLightsAll = QCheckBox("4P lights all punches:")
+        self.fourPLightsAll = QCheckBox("4P lights all punches")
         if ((self.flags & FLAGS_FOUR_P_TURNS_ON_ALL_P) != 0):
             self.fourPLightsAll.setChecked(True)
         else:
@@ -140,13 +135,13 @@ class flagsWidget(QWidget):
         else:
             self.has4K.setChecked(False)
 
-        self.fourKLightsAll = QCheckBox("4K lights all kicks:")
+        self.fourKLightsAll = QCheckBox("4K lights all kicks")
         if ((self.flags & FLAGS_FOUR_K_TURNS_ON_ALL_K) != 0):
             self.fourKLightsAll.setChecked(True)
         else:
             self.fourKLightsAll.setChecked(False)
 
-        self.hasExtraUp = QCheckBox("Has extra Up button:")
+        self.hasExtraUp = QCheckBox("Has extra Up button")
         if ((self.flags & FLAGS_HAS_4P) != 0):
             self.hasExtraUp.setChecked(True)
         else:
@@ -167,10 +162,6 @@ class flagsWidget(QWidget):
         self.layout.addWidget(self.upload, 2, 2)
 
         self.setLayout(self.layout)
-
-    def getFlags(self):
-        """Gets flag values from the board as one byte"""
-        return commandGet(self.parent.portSelect.portsCombo.currentText(), "get flags", 0)
 
     def setFlags(self):
         """Sends flag values to the board as one byte"""
@@ -208,8 +199,13 @@ class arcadeButton(QWidget):
         # Properties
         self.name = QLabel(name)
         self.parent = parent
-        self.passiveColor = QColor(qRgb(colorinfo[0], colorinfo[1], colorinfo[2]))
-        self.activeColor = QColor(qRgb(colorinfo[3], colorinfo[4], colorinfo[5]))
+        try:
+            self.passiveColor = QColor(qRgb(colorinfo[0], colorinfo[1], colorinfo[2]))
+            self.activeColor = QColor(qRgb(colorinfo[3], colorinfo[4], colorinfo[5]))
+        except IndexError as e:
+            print(colorinfo.encode('utf-8'))
+            print(parent.values.encode('utf-8'))
+            raise e
 
         # Content
         self.passiveColorButton = QPushButton("Passive")
@@ -259,24 +255,22 @@ class MainWindow(QWidget):
         self.setWindowTitle("BadLED Control Deck")
 
         # Ports
-        print("1")
         self.portSelect = portsWidget(self)
 
-        # Flags
-        print("2")
-        self.flags = flagsWidget(self)
-
-        # Delay
-        print("3")
-        self.delay = delayWidget(self)
+        # Values
+        self.values = self.getHwInfo()
 
         # Buttons
-        print("4")
-        self.numberOfButtons = int(self.getButtons());
+        self.numberOfButtons = self.values[0];
         self.buttons = self.buildButtonArray()
 
+        # Delay
+        self.delay = delayWidget(self, self.values[1])
+
+        # Flags
+        self.flags = flagsWidget(self, self.values[2])
+
         # Panels
-        print("5")
         self.panels = []
         self.panelLayouts = []
         self.buildPanels()
@@ -331,13 +325,9 @@ class MainWindow(QWidget):
         self.buttons = self.buildButtonArray()
         self.buildPanels()
         
-    def getButtons(self):
-        """Gets the number of buttons on the stick. Implicitly trusts the hardware to give the right info."""
-        return commandGet(self.portSelect.portsCombo.currentText(), "get hwinfo", self.flags.flags)
-
-    def getColors(self):
-        """Gets color data from the Arduino."""
-        return commandGet(self.portSelect.portsCombo.currentText(), "get colorinfo", self.flags.flags)
+    def getHwInfo(self):
+        """Gets just about everything in a single command (number of buttons, delay, flags, and color info)."""
+        return commandGet(self.portSelect.portsCombo.currentText(), "get hwinfo", 0)
 
     def buildPanels(self):
         """Builds button panels"""
@@ -354,38 +344,47 @@ class MainWindow(QWidget):
     def buildButtonArray(self):
         """Populates the array of arcadeButton widgets using color information provided by the hardware"""
         arr = []
-        colorinfo = self.getColors()
         
         for i in range(self.numberOfButtons - 1):
-            j = i * 6
-            arr.append(arcadeButton(self, "LED {}".format(i+1), colorinfo[j:j+7]))
+            j = 3 + (i * 6)
+            arr.append(arcadeButton(self, "LED {}".format(i+1), self.values[j:j+7]))
         return arr
 
 def connect(portString):
-    """Connects to a serial port. Since they are enumerated separately, we assume the port is available by default."""
+    """Connects to a serial port. Since they are enumerated by a separate function, we assume the port exists and is available"""
     s = serial.Serial(portString, timeout=5)
     resp = s.readline()
-    return s
+    if resp.decode()[:-2] == "I'm a BadLED, duh":
+        return s
+    else:
+        return None
 
 def commandSet(portString, command, flags):
     """Sends a command through serial, does not expect a return."""
     s = connect(portString)
-    s.write(command.encode())
-    resp = s.readline()
-    if ((flags & FLAGS_USE_LOOPBACK) != 0) == True:
+    if s == None:
+        QMessageBox.critical(None, "Error", "Device on {} does not seem to be a BadLED controller".format(portString))
+    else:
+        s.write(command.encode())
         resp = s.readline()
-    s.close()
-    QMessageBox.information(None, "Done", "Upload successful !")
+        if ((flags & FLAGS_USE_LOOPBACK) != 0) == True:
+            resp = s.readline()
+        s.close()
+        QMessageBox.information(None, "Done", "Upload successful !")
+        return True
 
 def commandGet(portString, command, flags):
     """Sends a command through serial, returns the hardware's answer."""
     s = connect(portString)
-    s.write(command.encode())
-    resp = s.readline()
-    if ((flags & FLAGS_USE_LOOPBACK) != 0) == True:
+    if s == None:
+        QMessageBox.critical(None, "Error", "Device on {} does not seem to be a BadLED controller".format(portString))
+    else:
+        s.write(command.encode())
         resp = s.readline()
-    s.close()
-    return resp
+        if ((flags & FLAGS_USE_LOOPBACK) != 0) == True:
+            resp = s.readline()
+        s.close()
+        return resp
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

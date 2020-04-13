@@ -193,7 +193,7 @@ void setup()
 { 
   // Turn on serial comms
   Serial.begin(9600);
-  Serial.println("Hi");
+  Serial.println("I'm a BadLED, duh");
   
   // Check if EEPROM has been initialized
   if (EEPROM.read(0) == 0xFF)
@@ -243,7 +243,7 @@ void loop()
     Serial.readBytes(serialBuffer, 128);
     
     // Echo back command sent for debug
-    if ((flags & USE_LOOPBACK) && (strstr(serialBuffer, "get flags") == 0)) // Never send loopback when asking for flags
+    if ((flags & USE_LOOPBACK) && (strstr(serialBuffer, "get hwinfo") == 0))
     {
       char commandLoopbackBuffer[128];
       commandLoopbackBuffer[0] = '\0';
@@ -261,40 +261,29 @@ void loop()
     if (strcmp(command, "get") == 0)
     {
       target = strtok(NULL, " \n");
-      if (strcmp(target, "colorinfo") == 0)
+      if (strcmp(target, "hwinfo") == 0)
       {
-        char* msg = (char*)calloc(totalNumberOfKeys * 6, sizeof(char));
-  
+        // Order goes number of keys, delay, flags, then color info
+        size_t size = 3 + (6 * totalNumberOfKeys);
+        char* msg = (char*)calloc(size, sizeof(char));
+        msg[0] = totalNumberOfKeys;
+        msg[1] = updateDelay;
+        msg[2] = flags;
+
         for (int i = 0; i < totalNumberOfKeys - 1; i++)
         {
-          int j = i * 6;
+          int j = 3 + (i * 6);
           msg[j+0] = buttonsList[i].colorWhenNotPressed.r;
           msg[j+1] = buttonsList[i].colorWhenNotPressed.g;
           msg[j+2] = buttonsList[i].colorWhenNotPressed.b;
           msg[j+3] = buttonsList[i].colorWhenPressed.r;
           msg[j+4] = buttonsList[i].colorWhenPressed.g;
           msg[j+5] = buttonsList[i].colorWhenPressed.b;
-        }
-  
-        Serial.write(msg, totalNumberOfKeys * 6);
-        Serial.println();
+        }        
+
+        Serial.write(msg, size);
+        Serial.println("");
         free(msg);
-      }
-      else if (strcmp(target, "hwinfo") == 0)
-      {
-        char msg[3];
-        itoa(totalNumberOfKeys, msg, 10);
-        Serial.println(msg);
-      }
-      else if (strcmp(target, "flags") == 0)
-      {
-        Serial.println(flags);
-      }
-      else if (strcmp(target, "delay") == 0)
-      {
-        char msg[4];
-        itoa(updateDelay, msg, 10);
-        Serial.println(msg);
       }
       else
       {
