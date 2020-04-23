@@ -9,6 +9,11 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 * The firmware
 * The desktop app (As of today (13/4/20), I'm pretty sure it is at least feature-complete)
 
+# What does not
+
+* Switching COM ports (some issues with rebuilding the UI)
+* For some reason, setting values for buttons past the 6th (it works from the serial terminal from the Arduino IDE, but not from the desktop app)
+
 # What needs to be done
 
 * The mobile app
@@ -19,18 +24,13 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 * ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook boards as the Nano breakout plugs directly onto the Brook header
 * Support to tell if 4P/4K should light up the row with its own color or each button with their normal pressed color
 
-# Changelog (13/4/20)
+# Changelog (23/4/20)
 
 * Firmware
-    * Hardware info is now gathered through a single transaction
-    * Added digital signature string to tell the app that it is indeed talking with a BadLED controller
+    * Split flags along two bytes (the first one being mostly unused at this point) to allow for more granular control of the hardware
 * Software
-    * Fixed a few typos here and there
-    * Sync'd protocol changes with the firmware, which significantly speeds up application startup as a result
-    * Added a message if the software cannot find any active serial port on the host
-    * Added dialog boxes that pop up if the device on the selected serial port does not identify itself as a BadLED controller
-    * Renamed "delay" to "Glow fade-out speed" for clarity
-    * Rewrote the button widget for better color previewing and clarity
+    * Adapted code to reflect the changes above
+    * Removed loopback flag as it is mostly useless to an end user (and also to make space for the new flags)
 
 # Releases
 
