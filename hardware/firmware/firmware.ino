@@ -1,7 +1,7 @@
 #include <FastLED.h>
 #include <EEPROM.h>
 
-#define DEBUG 1
+//#define DEBUG 1
 
 /* State flags */
 #define RESET_EEPROM            0b10000000
@@ -37,7 +37,8 @@ static const uint8_t pins[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 static const char* names[] = { "RIGHT", "DOWN", "LEFT", "UP", "1P", "2P", "3P", "4P", "1K", "2K", "3K", "4K" };
 static byte totalNumberOfKeys;
 static byte totalNumberOfLeds;
-static char serialBuffer[128];
+static char serialBuffer[256];
+static byte msgsize;
 static uint8_t lastSwitchState, currentSwitchState;
 
 static CRGB* ledsList;
@@ -219,6 +220,10 @@ void setup()
   Serial.begin(9600);
   Serial.println("I'm a BadLED, duh");
 
+  // Clear the buffer
+  for (int i = 0; i < 256; i++)
+    serialBuffer[i] = '\0';
+
   // Read flags
   stateFlags = EEPROM.read(0);
   layoutFlags = EEPROM.read(1);
@@ -266,17 +271,19 @@ void loop()
   Serial.flush();
   if (Serial.available() != 0)
   {
-    Serial.readBytes(serialBuffer, 128);
+    msgsize = Serial.readBytes(serialBuffer, 255);
     
     // Echo back command sent for debug
-    if ((stateFlags & USE_LOOPBACK) && (strstr(serialBuffer, "get hwinfo") == 0))
+    if ((stateFlags & USE_LOOPBACK) && ((strcmp(serialBuffer, "get hwinfo\n") == 0)))
     {
-      char commandLoopbackBuffer[128];
+      char commandLoopbackBuffer[255];
       commandLoopbackBuffer[0] = '\0';
 
       strcat(commandLoopbackBuffer, "Received: ");
-      strcat(commandLoopbackBuffer, serialBuffer);
-      
+      if (serialBuffer[msgsize-1] == '\n')
+        strncat(commandLoopbackBuffer, serialBuffer, msgsize-1);
+      else
+        strncat(commandLoopbackBuffer, serialBuffer, msgsize);
       Serial.println(commandLoopbackBuffer);
     }
 
@@ -290,31 +297,78 @@ void loop()
       if (strcmp(target, "hwinfo") == 0)
       {
         // Order goes number of keys, delay, state flags, layout flags, then color info
-        size_t size = 4 + (6 * totalNumberOfKeys);
+        size_t size = 256;  // TODO: Calculate the actual optimal size of the message
         char* msg = (char*)calloc(size, sizeof(char));
-        msg[0] = totalNumberOfKeys;
-        msg[1] = updateDelay;
-        msg[2] = stateFlags;
-        msg[3] = layoutFlags;
+        char* buffer = (char*)calloc(4, sizeof(char));
+        msg[0] = '\0';
 
-        for (int i = 0; i < totalNumberOfKeys - 1; i++)
+        itoa(totalNumberOfKeys, buffer, 10);
+        strcat(msg, buffer);
+        strcat(msg, " ");
+
+        itoa(updateDelay, buffer, 10);
+        strcat(msg, buffer);
+        strcat(msg, " ");
+
+        itoa(stateFlags, buffer, 10);
+        strcat(msg, buffer);
+        strcat(msg, " ");
+
+        itoa(layoutFlags, buffer, 10);
+        strcat(msg, buffer);
+        strcat(msg, " ");
+
+        // TODO: Remove last trailing space
+        for (int i = 0; i < totalNumberOfKeys; i++)
         {
-          int j = 4 + (i * 6);
-          msg[j+0] = buttonsList[i].colorWhenNotPressed.r;
-          msg[j+1] = buttonsList[i].colorWhenNotPressed.g;
-          msg[j+2] = buttonsList[i].colorWhenNotPressed.b;
-          msg[j+3] = buttonsList[i].colorWhenPressed.r;
-          msg[j+4] = buttonsList[i].colorWhenPressed.g;
-          msg[j+5] = buttonsList[i].colorWhenPressed.b;
-        }        
+          itoa(buttonsList[i].colorWhenNotPressed.r, buffer, 10);
+          strcat(msg, buffer);
+          strcat(msg, " ");
 
-        Serial.write(msg, size);
-        Serial.println("");
+          itoa(buttonsList[i].colorWhenNotPressed.g, buffer, 10);
+          strcat(msg, buffer);
+          strcat(msg, " ");
+
+          itoa(buttonsList[i].colorWhenNotPressed.b, buffer, 10);
+          strcat(msg, buffer);
+          strcat(msg, " ");
+
+          itoa(buttonsList[i].colorWhenPressed.r, buffer, 10);
+          strcat(msg, buffer);
+          strcat(msg, " ");
+
+          itoa(buttonsList[i].colorWhenPressed.g, buffer, 10);
+          strcat(msg, buffer);
+          strcat(msg, " ");
+
+          itoa(buttonsList[i].colorWhenPressed.b, buffer, 10);
+          strcat(msg, buffer);
+          strcat(msg, " ");
+        }  
+
+        Serial.println(msg);
+        free(buffer);
         free(msg);
       }
       else
       {
         Serial.println("ERROR: Unrecognized target");
+      }
+    }
+    else if (strcmp(command, "toggle") == 0)
+    {
+      target = strtok(NULL, " \n");
+      if (strcmp(target, "leds") == 0)
+      {
+        stateFlags ^= LEDS_STATE;
+        setFlags(stateFlags, layoutFlags);
+        Serial.print("LEDs are now ");
+        if (stateFlags & LEDS_STATE) Serial.println("ON");
+        else Serial.println("OFF");
+      }
+      else
+      {
+        Serial.println("ERROR: Unrecognized target"); 
       }
     }
     else if (strcmp(command, "set") == 0)
@@ -375,6 +429,36 @@ void loop()
         Serial.println(msg);
         free(msg);
       }
+      #ifdef DEBUG
+      else if (strcmp(target, "button") == 0)
+      {
+        byte i;
+        byte rn, gn, bn, ra, ga, ba;
+        char* buffer;
+
+        buffer = strtok(NULL, " \n");
+        i = atoi(buffer);
+        buffer = strtok(NULL, " \n");
+        rn = atoi(buffer);
+        buffer = strtok(NULL, " \n");
+        gn = atoi(buffer);
+        buffer = strtok(NULL, " \n");
+        bn = atoi(buffer);
+        buffer = strtok(NULL, " \n");
+        ra = atoi(buffer);
+        buffer = strtok(NULL, " \n");
+        ga = atoi(buffer);
+        buffer = strtok(NULL, " \n");
+        ba = atoi(buffer);
+
+        if ((buttonsList[i].colorWhenNotPressed.r != rn) || (buttonsList[i].colorWhenNotPressed.g != gn) || (buttonsList[i].colorWhenNotPressed.b != bn) ||
+        (buttonsList[i].colorWhenPressed.r != ra) || (buttonsList[i].colorWhenPressed.g != ga) || (buttonsList[i].colorWhenPressed.b != ba))
+        {
+          updateColor(&buttonsList[i], rn, gn, bn, ra, ga, ba);
+          buttonToString(buttonsList[i]);
+        }
+      }
+      #endif
       else
       {
         Serial.println("ERROR: Unrecognized target");

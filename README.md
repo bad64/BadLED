@@ -24,13 +24,12 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 * ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook boards as the Nano breakout plugs directly onto the Brook header
 * Support to tell if 4P/4K should light up the row with its own color or each button with their normal pressed color
 
-# Changelog (23/4/20)
+# Changelog (24/4/20)
 
 * Firmware
-    * Split flags along two bytes (the first one being mostly unused at this point) to allow for more granular control of the hardware
+    * `get hwinfo` now returns values as a string instead of bytes. While this makes the message considerably longer, it also allows debugging from the desktop app, which I believe I'm going to need pretty soon as I'm running out of RAM on the Nano
 * Software
     * Adapted code to reflect the changes above
-    * Removed loopback flag as it is mostly useless to an end user (and also to make space for the new flags)
 
 # Releases
 

@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout, QFrame
 from PyQt5.QtWidgets import QColorDialog, QComboBox, QLabel, QPushButton, QSpinBox
 from PyQt5.QtWidgets import QCheckBox
 from PyQt5.QtGui import QIcon, QColor, QPalette, qRgb
+from PyQt5 import QtCore
 
 # Serial
 import serial, serial.tools.list_ports
@@ -29,6 +30,20 @@ FLAGS_HAS_4K                  = 8
 FLAGS_FOUR_K_TURNS_ON_ALL_K   = 4
 FLAGS_FOUR_K_SHARES_COLOR     = 2
 FLAGS_HAS_EXTRA_UP_BUTTON     = 1
+
+class ExceptionHandler(QtCore.QObject):
+    errorSignal = QtCore.pyqtSignal()
+
+    def __init__(self):
+        super(ExceptionHandler, self).__init__()
+
+    def handler(self, exctype, value, traceback):
+        self.errorSignal.emit()
+        sys._excepthook(exctype, value, traceback)
+
+exceptionHandler = ExceptionHandler()
+sys._excepthook = sys.excepthook
+sys.excepthook = exceptionHandler.handler
 
 # Widgets
 class delayWidget(QWidget):
@@ -268,10 +283,10 @@ class MainWindow(QWidget):
         self.portSelect = portsWidget(self)
 
         # Values
-        self.values = self.getHwInfo()
+        self.values = [ int(x) for x in self.getHwInfo().decode().split(" ")[:-1] ]
 
         # Buttons
-        self.numberOfButtons = self.values[0];
+        self.numberOfButtons = self.values[0]
         self.buttons = self.buildButtonArray()
 
         # Delay
@@ -353,7 +368,7 @@ class MainWindow(QWidget):
             del self.buttons
                 
             # Get new values
-            self.values = self.getHwInfo()
+            self.values = [ int(x) for x in self.getHwInfo().decode().split(" ")[:-1] ]
 
             self.numberOfButtons = self.values[0];
             self.buttons = self.buildButtonArray()
@@ -404,10 +419,10 @@ class MainWindow(QWidget):
     def buildButtonArray(self):
         """Populates the array of arcadeButton widgets using color information provided by the hardware"""
         arr = []
-        
+
         for i in range(self.numberOfButtons):
-            j = 4 + (i * 6)
-            arr.append(arcadeButton(self, "LED {}".format(i+1), self.values[j:j+7]))
+            j = 4 + (6 * i)
+            arr.append(arcadeButton(self, "LED {}".format(i+1), self.values[j:j+6]))
         return arr
 
 def connect(portString):
@@ -429,6 +444,7 @@ def commandSet(portString, command, stateFlags, layoutFlags):
         s.write(command.encode())
         resp = s.readline()
         if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
+            print(resp.decode(), end="")
             resp = s.readline()
         s.close()
         QMessageBox.information(None, "Done", "Upload successful !")
@@ -444,6 +460,7 @@ def commandGet(portString, command, stateFlags, layoutFlags):
         s.write(command.encode())
         resp = s.readline()
         if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
+            print(resp.decode(), end="")
             resp = s.readline()
         s.close()
         return resp
