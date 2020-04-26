@@ -128,8 +128,8 @@ void setFlags(byte newStateFlags, byte newLayoutFlags)
 
 void setDelay(byte newDelay)
 {
-  EEPROM.update(1, newDelay);
-  updateDelay = EEPROM.read(1);
+  EEPROM.update(2, newDelay);
+  updateDelay = EEPROM.read(2);
 }
 
 void panic(const char* errormsg)
@@ -274,7 +274,7 @@ void loop()
     msgsize = Serial.readBytes(serialBuffer, 255);
     
     // Echo back command sent for debug
-    if ((stateFlags & USE_LOOPBACK) && ((strcmp(serialBuffer, "get hwinfo\n") == 0)))
+    if ((stateFlags & USE_LOOPBACK) && ((strcmp(serialBuffer, "get hwinfo\n") != 0)))
     {
       char commandLoopbackBuffer[255];
       commandLoopbackBuffer[0] = '\0';
@@ -296,19 +296,11 @@ void loop()
       target = strtok(NULL, " \n");
       if (strcmp(target, "hwinfo") == 0)
       {
-        // Order goes number of keys, delay, state flags, layout flags, then color info
+        // Order goes state flags, layout flags, update delay, number of buttons, then color info
         size_t size = 256;  // TODO: Calculate the actual optimal size of the message
         char* msg = (char*)calloc(size, sizeof(char));
         char* buffer = (char*)calloc(4, sizeof(char));
         msg[0] = '\0';
-
-        itoa(totalNumberOfKeys, buffer, 10);
-        strcat(msg, buffer);
-        strcat(msg, " ");
-
-        itoa(updateDelay, buffer, 10);
-        strcat(msg, buffer);
-        strcat(msg, " ");
 
         itoa(stateFlags, buffer, 10);
         strcat(msg, buffer);
@@ -317,6 +309,14 @@ void loop()
         itoa(layoutFlags, buffer, 10);
         strcat(msg, buffer);
         strcat(msg, " ");
+        
+        itoa(updateDelay, buffer, 10);
+        strcat(msg, buffer);
+        strcat(msg, " ");
+        
+        itoa(totalNumberOfKeys, buffer, 10);
+        strcat(msg, buffer);
+        strcat(msg, " ");        
 
         // TODO: Remove last trailing space
         for (int i = 0; i < totalNumberOfKeys; i++)
@@ -377,9 +377,13 @@ void loop()
       if (strcmp(target, "flags") == 0)
       {
         char* args = strtok(NULL, " \n");
-        byte newStateFlags = atoi(args);
+        uint16_t newStateFlags = atoi(args);
+        if (newStateFlags >= 256)
+          newStateFlags = stateFlags;
         args = strtok(NULL, " \n");
-        byte newLayoutFlags = atoi(args);
+        uint16_t newLayoutFlags = atoi(args);
+        if (newLayoutFlags >= 256)
+          newLayoutFlags = layoutFlags;
         setFlags(newStateFlags, newLayoutFlags);
         Serial.println("Flags updated");
         
@@ -425,7 +429,7 @@ void loop()
 
         setDelay(newDelay);
         char* msg = (char*)calloc(16, sizeof(char));
-        sprintf(msg, "Delay set to %d", newDelay); 
+        sprintf(msg, "Delay set to %d", updateDelay); 
         Serial.println(msg);
         free(msg);
       }

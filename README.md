@@ -7,12 +7,7 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 # What currently works
 
 * The firmware
-* The desktop app (As of today (13/4/20), I'm pretty sure it is at least feature-complete)
-
-# What does not
-
-* Switching COM ports (some issues with rebuilding the UI)
-* For some reason, setting values for buttons past the 6th (it works from the serial terminal from the Arduino IDE, but not from the desktop app)
+* The desktop app
 
 # What needs to be done
 
@@ -21,15 +16,12 @@ For all you lovely people who like to RGB their arcade stick, but also can't/don
 
 # What should ideally be done
 
-* ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook boards as the Nano breakout plugs directly onto the Brook header
-* Support to tell if 4P/4K should light up the row with its own color or each button with their normal pressed color
-
-# Changelog (24/4/20)
-
 * Firmware
-    * `get hwinfo` now returns values as a string instead of bytes. While this makes the message considerably longer, it also allows debugging from the desktop app, which I believe I'm going to need pretty soon as I'm running out of RAM on the Nano
+    * ~~Better out-of-box stick support (through reporting button names from the hardware), currently the software as-is only supports 8 button sticks with 4 joystick LEDs~~ Will likely not be done due to this project being basically tailor made for the Brook boards as the Nano breakout plugs directly onto the Brook header
 * Software
-    * Adapted code to reflect the changes above
+    * Some way to set the `USE_LOOPBACK` and `LEDS_STATE` flags through the GUI
+    * The ability to save and load color presets
+* Documentation
 
 # Releases
 
@@ -37,16 +29,17 @@ Coming SOON™
 
 # How to use
 
-* Download the Gerber files that you need, order the PCBs from wherever you want (or make them yourself if you can)
+* Download the Gerber files that you need, order the PCBs from wherever you want (or make them yourself if you can/want to)
 * Download the desktop application (when it becomes available) and launch it
+* Pick a button
 * Assign RGB values to be used when the button is pressed and not pressed
-* Repeat steps 2 and 3 as much as necessary
+* Repeat steps 2 to 4 as much as necessary
 * Upload and make your fightstick visible from outer space
 
 # And if I want to scrutinize every byte of your code instead of downloading precompiled stuff ?
 
 Go ahead ! I won't stop you.  
-The desktop app is set up to be compiled from a Python virtual environment.
+The desktop app is set up to be compiled from a Python virtual environment, though nothing prevents you from running it as-is.
 
 # (Probable) FAQs:
 

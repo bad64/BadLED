@@ -123,6 +123,7 @@ class flagsWidget(QWidget):
         self.parent = parent
         self.stateFlags = stateFlags
         self.layoutFlags = layoutFlags
+        self.layout = QGridLayout()
 
         # Set checkboxes
         self.joyHasLeds = QCheckBox("Joystick has LEDs")
@@ -176,7 +177,6 @@ class flagsWidget(QWidget):
         self.upload = QPushButton("Update flags")
         self.upload.clicked.connect(lambda: self.setFlags())
 
-        self.layout = QGridLayout()
         self.layout.addWidget(self.has4P, 0, 0)
         self.layout.addWidget(self.fourPLightsAll, 0, 1)
         self.layout.addWidget(self.fourPSharesColor, 0, 2)
@@ -188,6 +188,47 @@ class flagsWidget(QWidget):
         self.layout.addWidget(self.upload, 2, 2)
 
         self.setLayout(self.layout)
+
+    def refresh(self):
+        if ((self.layoutFlags & FLAGS_JOYSTICK_HAS_LEDS) != 0):
+            self.joyHasLeds.setChecked(True)
+        else:
+            self.joyHasLeds.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_HAS_4P) != 0):
+            self.has4P.setChecked(True)
+        else:
+            self.has4P.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_FOUR_P_TURNS_ON_ALL_P) != 0):
+            self.fourPLightsAll.setChecked(True)
+        else:
+            self.fourPLightsAll.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_FOUR_P_SHARES_COLOR) != 0):
+            self.fourPSharesColor.setChecked(True)
+        else:
+            self.fourPSharesColor.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_HAS_4K) != 0):
+            self.has4K.setChecked(True)
+        else:
+            self.has4K.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_FOUR_K_TURNS_ON_ALL_K) != 0):
+            self.fourKLightsAll.setChecked(True)
+        else:
+            self.fourKLightsAll.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_FOUR_K_SHARES_COLOR) != 0):
+            self.fourKSharesColor.setChecked(True)
+        else:
+            self.fourKSharesColor.setChecked(False)
+
+        if ((self.layoutFlags & FLAGS_HAS_4P) != 0):
+            self.hasExtraUp.setChecked(True)
+        else:
+            self.hasExtraUp.setChecked(False)
 
     def setFlags(self):
         """Sends flag values to the board as two bytes"""
@@ -286,14 +327,14 @@ class MainWindow(QWidget):
         self.values = [ int(x) for x in self.getHwInfo().decode().split(" ")[:-1] ]
 
         # Buttons
-        self.numberOfButtons = self.values[0]
+        self.numberOfButtons = self.values[3]
         self.buttons = self.buildButtonArray()
 
         # Delay
-        self.delay = delayWidget(self, self.values[1])
+        self.delay = delayWidget(self, self.values[2])
 
         # Flags
-        self.flags = flagsWidget(self, self.values[2], self.values[3])
+        self.flags = flagsWidget(self, self.values[0], self.values[1])
 
         # Panels
         self.panels = []
@@ -352,46 +393,46 @@ class MainWindow(QWidget):
         c = self.getHwInfo()
 
         if c is not None:
-            # Delete old layouts
+            # Delete old panels and their content
             for i in reversed(range(len(self.panelLayouts))):
                 for j in reversed(range(0, 4)):
                     self.panelLayouts[i].itemAt(j).widget().setParent(None)
 
             for i in reversed(range(len(self.panels))):
-                del self.panels[i]
+                self.panels[i].setParent(None)
+                self.panels[i].deleteLater()
+                self.buttonsHBox.removeWidget(self.panels[i])
 
-            for i in reversed(range(len(self.buttons))):
-                del self.buttons[i]
-
-            del self.panelLayouts
-            del self.panels
-            del self.buttons
-                
-            # Get new values
-            self.values = [ int(x) for x in self.getHwInfo().decode().split(" ")[:-1] ]
-
-            self.numberOfButtons = self.values[0];
-            self.buttons = self.buildButtonArray()
-
-            self.delay = delayWidget(self, self.values[1])
-
-            self.flags = flagsWidget(self, self.values[2])
-                
+            self.buttons = []
             self.panels = []
             self.panelLayouts = []
+                
+            # Get new values
+            self.values = [ int(x) for x in c.decode().split(" ")[:-1] ]
+
+            # Rebuild button array
+            self.numberOfButtons = self.values[3];
+            self.buttons = self.buildButtonArray()
+
+            # Update delay widget
+            self.delay.spinbox.setValue(self.values[2])
+
+            # Update flags widget
+            self.flags.stateFlags = self.values[0]
+            self.flags.layoutFlags = self.values[1]
+            self.flags.refresh()
+
+            # Rebuild panels
             self.buildPanels()
 
-            # Re-add everything
-            self.mainVBox = QVBoxLayout()
+            # Replace existing button panels with the one we just built
+            self.mainVBox.removeItem(self.mainVBox.itemAt(3))
             self.buttonsHBox = QHBoxLayout()
 
             for i in range(len(self.panels)):
                 self.buttonsHBox.addWidget(self.panels[i])
-
-            self.mainVBox.addWidget(self.flags)
-            self.mainVBox.addWidget(self.delay)
+                
             self.mainVBox.addLayout(self.buttonsHBox)
-
             self.setLayout(self.mainVBox)
 
             # Show
@@ -420,7 +461,7 @@ class MainWindow(QWidget):
         """Populates the array of arcadeButton widgets using color information provided by the hardware"""
         arr = []
 
-        for i in range(self.numberOfButtons):
+        for i in range(self.numberOfButtons-1):
             j = 4 + (6 * i)
             arr.append(arcadeButton(self, "LED {}".format(i+1), self.values[j:j+6]))
         return arr
@@ -429,7 +470,7 @@ def connect(portString):
     """Connects to a serial port. Since they are enumerated by a separate function, we assume the port exists and is available"""
     s = serial.Serial(portString, timeout=5)
     resp = s.readline()
-    if resp.decode()[:-2] == "I'm a BadLED, duh":
+    if "I'm a BadLED, duh" in resp.decode()[:-2]:
         return s
     else:
         print(resp)
@@ -440,12 +481,16 @@ def commandSet(portString, command, stateFlags, layoutFlags):
     s = connect(portString)
     if s == None:
         QMessageBox.critical(None, "Error", "Device on {} does not seem to be a BadLED controller".format(portString))
+        return None
     else:
         s.write(command.encode())
         resp = s.readline()
-        if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
-            print(resp.decode(), end="")
+        if "Received:" in resp.decode()[:-2]:
+            if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
+                print("Loopback: {}".format(resp.decode().split(" ", 1)[1]), end="")
             resp = s.readline()
+            if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
+                print("> {}".format(resp.decode()), end="")
         s.close()
         QMessageBox.information(None, "Done", "Upload successful !")
         return True
@@ -459,9 +504,12 @@ def commandGet(portString, command, stateFlags, layoutFlags):
     else:
         s.write(command.encode())
         resp = s.readline()
-        if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
-            print(resp.decode(), end="")
+        if "Received:" in resp.decode()[:-2]:
+            if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
+                print("Loopback: {}".format(resp.decode().split(" ", 1)[1]), end="")
             resp = s.readline()
+            if ((stateFlags & FLAGS_USE_LOOPBACK) != 0) == True:
+                print("> {}".format(resp.decode()), end="")
         s.close()
         return resp
 
