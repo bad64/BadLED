@@ -16,11 +16,11 @@ import glob, sys
 FLAGS_RESET_EEPROM            = 128
 FLAGS_USE_LOOPBACK            = 64
 FLAGS_LEDS_STATE              = 32
-FLAGS_STATE_UNUSED_BIT_1      = 16
-FLAGS_STATE_UNUSED_BIT_2      = 8
-FLAGS_STATE_UNUSED_BIT_3      = 4
-FLAGS_STATE_UNUSED_BIT_4      = 2
-FLAGS_STATE_UNUSED_BIT_5      = 1
+FLAGS_USE_BT                  = 16
+FLAGS_STATE_UNUSED_BIT_1      = 8
+FLAGS_STATE_UNUSED_BIT_2      = 4
+FLAGS_STATE_UNUSED_BIT_3      = 2
+FLAGS_STATE_UNUSED_BIT_4      = 1
 
 FLAGS_JOYSTICK_HAS_LEDS       = 128
 FLAGS_HAS_4P                  = 64
@@ -126,6 +126,24 @@ class flagsWidget(QWidget):
         self.layout = QGridLayout()
 
         # Set checkboxes
+        self.useLoopback = QCheckBox("Use hardware loopback")
+        if ((self.stateFlags & FLAGS_USE_LOOPBACK) != 0):
+            self.useLoopback.setChecked(True)
+        else:
+            self.useLoopback.setChecked(False)
+
+        self.ledsOn = QCheckBox("Turn LEDs on")
+        if ((self.stateFlags & FLAGS_LEDS_STATE) != 0):
+            self.ledsOn.setChecked(True)
+        else:
+            self.ledsOn.setChecked(False)
+
+        self.useBT = QCheckBox("Enable Bluetooth Module (after rebooting the BadLED)")
+        if ((self.stateFlags & FLAGS_USE_BT) != 0):
+            self.useBT.setChecked(True)
+        else:
+            self.useBT.setChecked(False)
+            
         self.joyHasLeds = QCheckBox("Joystick has LEDs")
         if ((self.layoutFlags & FLAGS_JOYSTICK_HAS_LEDS) != 0):
             self.joyHasLeds.setChecked(True)
@@ -177,19 +195,37 @@ class flagsWidget(QWidget):
         self.upload = QPushButton("Update flags")
         self.upload.clicked.connect(lambda: self.setFlags())
 
-        self.layout.addWidget(self.has4P, 0, 0)
-        self.layout.addWidget(self.fourPLightsAll, 0, 1)
-        self.layout.addWidget(self.fourPSharesColor, 0, 2)
-        self.layout.addWidget(self.has4K, 1, 0)
-        self.layout.addWidget(self.fourKLightsAll, 1, 1)
-        self.layout.addWidget(self.fourKSharesColor, 1, 2)
-        self.layout.addWidget(self.joyHasLeds, 2, 0)
-        self.layout.addWidget(self.hasExtraUp, 2, 1)
-        self.layout.addWidget(self.upload, 2, 2)
+        self.layout.addWidget(self.useLoopback, 0, 0)
+        self.layout.addWidget(self.ledsOn, 0, 1)
+        self.layout.addWidget(self.useBT, 0, 2)
+        self.layout.addWidget(self.has4P, 1, 0)
+        self.layout.addWidget(self.fourPLightsAll, 1, 1)
+        self.layout.addWidget(self.fourPSharesColor, 1, 2)
+        self.layout.addWidget(self.has4K, 2, 0)
+        self.layout.addWidget(self.fourKLightsAll, 2, 1)
+        self.layout.addWidget(self.fourKSharesColor, 2, 2)
+        self.layout.addWidget(self.joyHasLeds, 3, 0)
+        self.layout.addWidget(self.hasExtraUp, 3, 1)
+        self.layout.addWidget(self.upload, 3, 2)
 
         self.setLayout(self.layout)
 
     def refresh(self):
+        if ((self.stateFlags & FLAGS_USE_LOOPBACK) != 0):
+            self.useLoopback.setChecked(True)
+        else:
+            self.useLoopback.setChecked(False)
+
+        if ((self.stateFlags & FLAGS_LEDS_STATE) != 0):
+            self.ledsOn.setChecked(True)
+        else:
+            self.ledsOn.setChecked(False)
+
+        if ((self.stateFlags & FLAGS_USE_BT) != 0):
+            self.useBT.setChecked(True)
+        else:
+            self.useBT.setChecked(False)
+            
         if ((self.layoutFlags & FLAGS_JOYSTICK_HAS_LEDS) != 0):
             self.joyHasLeds.setChecked(True)
         else:
@@ -232,6 +268,13 @@ class flagsWidget(QWidget):
 
     def setFlags(self):
         """Sends flag values to the board as two bytes"""
+        self.stateFlags = 0
+        if (self.useLoopback.isChecked()):
+            self.stateFlags += FLAGS_USE_LOOPBACK
+
+        if (self.ledsOn.isChecked()):
+            self.stateFlags += FLAGS_LEDS_STATE
+        
         self.layoutFlags = 0
         if (self.joyHasLeds.isChecked()):
             self.layoutFlags += FLAGS_JOYSTICK_HAS_LEDS
@@ -440,7 +483,7 @@ class MainWindow(QWidget):
         
     def getHwInfo(self):
         """Gets just about everything in a single command (number of buttons, delay, flags, and color info)."""
-        return commandGet(self.portSelect.portsCombo.currentText(), "get hwinfo", 0, 0)
+        return commandGet(self.portSelect.portsCombo.currentText(), "get hwinfo", 64, 0)
 
     def buildPanels(self):
         """Builds button panels"""
@@ -468,9 +511,15 @@ class MainWindow(QWidget):
 
 def connect(portString):
     """Connects to a serial port. Since they are enumerated by a separate function, we assume the port exists and is available"""
-    s = serial.Serial(portString, timeout=5)
+    s = serial.Serial(portString, 9600, timeout=5)
     resp = s.readline()
+    s.write("new phone who dis\n".encode())
+    resp = s.readline()
+    if resp.decode().startswith("Received"):
+        resp = s.readline()
+        
     if "I'm a BadLED, duh" in resp.decode()[:-2]:
+        print("{}: {}".format(portString, resp.decode()), end="")
         return s
     else:
         print(resp)
@@ -483,6 +532,7 @@ def commandSet(portString, command, stateFlags, layoutFlags):
         QMessageBox.critical(None, "Error", "Device on {} does not seem to be a BadLED controller".format(portString))
         return None
     else:
+        command += "\n"
         s.write(command.encode())
         resp = s.readline()
         if "Received:" in resp.decode()[:-2]:
@@ -502,6 +552,7 @@ def commandGet(portString, command, stateFlags, layoutFlags):
         QMessageBox.critical(None, "Error", "Device on {} does not seem to be a BadLED controller".format(portString))
         return None
     else:
+        command += "\n"
         s.write(command.encode())
         resp = s.readline()
         if "Received:" in resp.decode()[:-2]:

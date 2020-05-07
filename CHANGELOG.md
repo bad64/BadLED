@@ -1,11 +1,9 @@
-# Changelog (26/4/20)
+# Changelog (7/5/20)
 
 * Firmware
-    * Changed data order in `get hwinfo` response (state flags, layout flags, delay, number of buttons, *then* color info)
-    * Fixed an issue where I forgot to update where to store the delay flag in `setDelay()`
+    * ID string now needs to be requested by the client software through the command `new phone who dis`
+    * Added SoftSerial Bluetooth compatibility
 * Software
-    * Adapted code to reflect the changes above
-    * Switching COM ports appears to work now (needs more thorough testing)
-    * Console now outputs in and outbound messages if the `USE_LOOPBACK` flag is set to 1
-* Meta
-    * Changelogs are now their own separate file
+    * Changed the handshake to reflect the new way to ask the BadLED to identify itself
+    * Added flag boxes for the new parameters
+    * Even more debug info through the console
