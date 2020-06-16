@@ -47,10 +47,10 @@ The desktop app is set up to be compiled from a Python virtual environment, thou
 A: The Kaimana rings are pretty much only compatible with Sanwa buttons, and I run Crown 202c buttons, so it was that or hot glue. And shipping costs were a bit much.
 
 **Q: Are the rings compatible with a Kaimana ?**  
-A: They are ! They use WS2812B RGB LEDs, same as the normal Kaimana rings. (The firmware, however, might need some tweaking to work)
+A: No. Not without extensive hacking anyway.
 
 **Q: What about the Nano breakout ? Can I use it with normal Kaimana rings ?**  
-A: Pretty sure you can ! They use the same LEDs and protocol.
+A: Same answer as above.
 
 **Q: On which buttons do the rings fit ?**  
 A: They were measured so as to fit Crown 202c 30mm buttons. If you're willing to use hot glue, you can definitely put them under 30mm GamerFingers too, and they're likely too wide for Sanwas. I have no idea if they fit on Seimitsu buttons without hot glue however.
