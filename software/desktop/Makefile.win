@@ -1,7 +1,0 @@
-all:
-	pip install -r requirements.txt
-	@echo -ne "Executing command: "
-	pyinstaller --clean --onefile main.pyw
-	@move dist/main.exe NotKaimana.exe
-	@echo "Cleaning up..."
-	@rmdir /Q /S build dist main.spec
